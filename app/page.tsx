@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// 🚑 兜底方案数据 (100% 成功率)
+// 🚑 兜底方案 (100% 成功率保障)
 const SAFETY_NET_PLANS = [
   {
     id: 'safe_1',
@@ -36,14 +36,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   
-  // 📊 状态管理
   const [stats, setStats] = useState({
     total: 0,
     passRate: 0,
     excludeRate: 0,
     rejectRate: 0,
     bestCompany: '暂无数据',
-    riskLevel: '低', // '低' | '中' | '高'
+    riskLevel: '低',
     needsRescue: false 
   })
 
@@ -51,8 +50,6 @@ export default function Home() {
   const getLeverageStrategy = (riskLevel: string, disease: string) => {
     if (riskLevel === '低') {
       return {
-        title: '完美高杠杆组合',
-        desc: '您的身体状况极佳，有机会以“标准体”投保。建议利用健康优势，用最低保费撬动最高保额。',
         leverage: '1 : 500+',
         tags: ['性价比之王', '全面保障'],
         items: [
@@ -63,8 +60,6 @@ export default function Home() {
       }
     } else if (riskLevel === '中') {
       return {
-        title: '除外补漏组合',
-        desc: `虽然${disease}部位可能被“除外承保”，但我们可以通过“打补丁”的方式，把保障缺口补回来。`,
         leverage: '1 : 200',
         tags: ['精准修补', '攻守兼备'],
         items: [
@@ -75,8 +70,6 @@ export default function Home() {
       }
     } else {
       return {
-        title: '带病逆袭组合',
-        desc: '常规重疾险可能拒保，但通过“防癌+普惠”组合，依然能构建高达百万的防御体系。',
         leverage: '1 : 80',
         tags: ['绝处逢生', '极限操作'],
         items: [
@@ -88,32 +81,22 @@ export default function Home() {
     }
   }
 
-  // ... 前面的代码不变 ...
-
+  // 🔍 核心搜索逻辑 (已升级为智能分词版)
   const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
     setHasSearched(true)
 
-    // 1. 🔪 智能分词：把用户输入的长句子拆成关键词数组
-    // 例如："甲状腺结节 4a级" -> ["甲状腺", "结节", "4a"]
-    const keywords = query.trim().split(/[\s,，+]+/); // 支持空格、逗号、加号分隔
+    // 1. 🔪 智能分词：例如 "甲状腺结节 4a" -> ["甲状腺", "结节", "4a"]
+    const keywords = query.trim().split(/[\s,，+]+/); 
+    const primaryKeyword = keywords[0]; // 用第一个词去数据库“海选”
 
-    // 2. 🔍 构造多重搜索条件
-    // 只要 title, content, disease_type 里包含任意一个关键词，就先捞出来
-    let supabaseQuery = supabase
+    // 2. 🌊 数据库海选
+    const { data, error } = await supabase
       .from('cases')
       .select('*')
-      .order('created_at', { ascending: false });
-
-    // 这一步比较 tricky，Supabase 的简单 OR 语法很难做多关键词。
-    // 我们采用“宽进严出”策略：先用最核心的词搜（取第一个词），然后在前端做精细过滤。
-    // 如果用户搜的是“甲状腺 4a”，我们先搜所有含“甲状腺”的，再在前端找含“4a”的。
-    const primaryKeyword = keywords[0]; 
-    
-    // 如果有多个词，我们先用第一个词去数据库“海选”
-    const { data, error } = await supabaseQuery
       .or(`disease_type.ilike.%${primaryKeyword}%, content.ilike.%${primaryKeyword}%, product_name.ilike.%${primaryKeyword}%`)
+      .order('created_at', { ascending: false })
 
     if (error) {
       console.error(error)
@@ -123,78 +106,66 @@ export default function Home() {
 
     let cases = data || []
 
-    // 3. ⚖️ 前端二次精筛与排序 (核心优化)
+    // 3. ⚖️ 前端精筛排序
     if (keywords.length > 1) {
-      // 给每个结果打分
       cases = cases.map(item => {
         let score = 0;
-        const fullText = (item.disease_type + item.content + item.product_name).toLowerCase();
-        
+        const fullText = (item.disease_type + item.content + item.product_name + item.verdict).toLowerCase();
         keywords.forEach(kw => {
           if (fullText.includes(kw.toLowerCase())) score += 1;
         });
-        
         return { ...item, score };
       })
-      // 过滤掉分数为0的（虽然理论上第一步已经保证了至少匹配一个）
       .filter(item => item.score > 0)
-      // 按匹配度排序：匹配词越多的越靠前
       .sort((a, b) => b.score - a.score);
     }
 
     setResults(cases)
 
-    // ... 后面的统计逻辑(stats)不变 ...
+    // 4. 📊 统计与风险判定
     if (cases.length > 0) {
-       // ... (保留之前的统计代码) ...
-       // (为了节省篇幅，这里只要保留你原来的 setStats 逻辑即可)
-       const total = cases.length
-       const passCount = cases.filter(c => c.verdict === 'pass').length
-       const excludeCount = cases.filter(c => c.verdict === 'exclude').length
-       const rejectCount = cases.filter(c => c.verdict === 'reject').length
+      const total = cases.length
+      const passCount = cases.filter(c => c.verdict === 'pass').length
+      const excludeCount = cases.filter(c => c.verdict === 'exclude').length
+      const rejectCount = cases.filter(c => c.verdict === 'reject').length
       
-       const bestCase = cases.find(c => c.verdict === 'pass')
+      const bestCase = cases.find(c => c.verdict === 'pass')
       
-       let calculatedRisk = '低'
-       if (rejectCount / total > 0.5) {
-         calculatedRisk = '高'
-       } else if ((excludeCount + rejectCount) / total > 0.4) {
-         calculatedRisk = '中'
-       }
+      let calculatedRisk = '低'
+      if (rejectCount / total > 0.5) {
+        calculatedRisk = '高'
+      } else if ((excludeCount + rejectCount) / total > 0.4) {
+        calculatedRisk = '中'
+      }
 
-       setStats({
-         total,
-         passRate: Math.round((passCount / total) * 100),
-         excludeRate: Math.round((excludeCount / total) * 100),
-         rejectRate: Math.round((rejectCount / total) * 100),
-         bestCompany: bestCase ? (bestCase.product_name || bestCase.company) : '商业险难度大',
-         riskLevel: calculatedRisk,
-         needsRescue: calculatedRisk === '高'
-       })
+      setStats({
+        total,
+        passRate: Math.round((passCount / total) * 100),
+        excludeRate: Math.round((excludeCount / total) * 100),
+        rejectRate: Math.round((rejectCount / total) * 100),
+        bestCompany: bestCase ? (bestCase.product_name || bestCase.company) : '商业险难度大',
+        riskLevel: calculatedRisk,
+        needsRescue: calculatedRisk === '高'
+      })
     } else {
-       // 没搜到 -> 兜底
-       setStats({
-         total: 0,
-         passRate: 0,
-         excludeRate: 0,
-         rejectRate: 0,
-         bestCompany: '暂无数据',
-         riskLevel: '高',
-         needsRescue: true 
-       })
+      // 没搜到 -> 兜底
+      setStats({
+        total: 0,
+        passRate: 0,
+        excludeRate: 0,
+        rejectRate: 0,
+        bestCompany: '暂无数据',
+        riskLevel: '高',
+        needsRescue: true 
+      })
     }
-    
     setLoading(false)
-  }
-
-  // ... 后面的代码不变 ...
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch()
   }
 
-  // 获取当前策略
   const strategy = getLeverageStrategy(stats.riskLevel, query)
 
   return (
@@ -218,7 +189,7 @@ export default function Home() {
           </h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">
             全网最全核保数据库。
-            <span className="text-blue-600 font-medium">智能匹配杠杆策略</span>，
+            <span className="text-blue-600 font-medium">AI 杠杆配置</span>，
             帮您找到 <span className="font-bold text-gray-900">赔得最多、保得最全</span> 的组合方案。
           </p>
         </div>
@@ -227,7 +198,7 @@ export default function Home() {
         <div className="max-w-2xl mx-auto relative mb-12 group">
           <input
             type="text"
-            placeholder="输入疾病名（如：肺结节、乳腺癌、高血压）..."
+            placeholder="输入疾病名（如：甲状腺结节、4a级、术后）..."
             className="w-full h-16 pl-8 pr-32 rounded-full border-2 border-gray-100 shadow-sm text-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all hover:border-blue-200"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -241,11 +212,9 @@ export default function Home() {
           </button>
         </div>
 
-        {/* --- 结果展示区 --- */}
         {hasSearched && (
           <div className="animate-fade-in-up space-y-8 mb-20">
             
-            {/* 1. 大数据分析面板 (如果有数据) */}
             {results.length > 0 && (
               <div className="bg-white rounded-3xl shadow-xl shadow-blue-50 overflow-hidden border border-gray-100">
                 <div className="p-8 pb-6 border-b border-gray-50">
@@ -274,7 +243,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* 2. 🧠 AI 杠杆配置攻略 (替换了原来的风向标) */}
+                {/* AI 杠杆配置攻略 */}
                 <div className="bg-slate-50 p-6 md:p-8">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
@@ -295,18 +264,15 @@ export default function Home() {
                   </div>
 
                   <div className="bg-white rounded-2xl border border-blue-100 p-6 shadow-sm relative overflow-hidden">
-                    {/* 背景装饰 */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-10 -mt-10 opacity-50 pointer-events-none"></div>
                     
                     <div className="flex flex-col md:flex-row gap-8 items-center">
-                      {/* 左侧：杠杆率展示 */}
                       <div className="text-center md:text-left min-w-[120px]">
                         <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">预估杠杆率</div>
                         <div className="text-4xl font-black text-blue-600 font-mono tracking-tight">{strategy.leverage}</div>
                         <div className="text-xs text-slate-400 mt-2">投入1元 : 赔付{strategy.leverage.split(':')[1]}元</div>
                       </div>
 
-                      {/* 右侧：组合策略列表 */}
                       <div className="flex-1 w-full space-y-4">
                         {strategy.items.map((item, idx) => (
                           <div key={idx} className="flex items-start gap-3">
@@ -314,8 +280,7 @@ export default function Home() {
                               item.type === '主险' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                               item.type === '核心' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                               item.type === '加固' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                              item.type === '补丁' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                              'bg-green-50 text-green-700 border-green-200'
+                              'bg-amber-50 text-amber-700 border-amber-200'
                             }`}>
                               {item.type}
                             </div>
@@ -332,7 +297,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* 3. 兜底救援方案 (如果风险极高或没数据，强调显示) */}
+            {/* 兜底救援方案 */}
             {(stats.needsRescue || results.length === 0) && (
               <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl border border-orange-100 p-8 relative overflow-hidden">
                 <div className="relative z-10">
@@ -355,7 +320,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* 4. 真实案例列表 */}
+            {/* 真实案例列表 */}
             {results.length > 0 && (
               <div className="space-y-4">
                  <h3 className="text-lg font-bold text-gray-900 px-1">真实过往案例 ({results.length})</h3>
