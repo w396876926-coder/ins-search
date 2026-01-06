@@ -5,8 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 
 // 初始化 Supabase 客户端 (用于公开搜索，使用你的环境变量)
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+  'https://trqjgrpxggkvczqmkctk.supabase.co',  // 你的 Project URL
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRycWpncnB4Z2drdmN6cW1rY3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MjA3NjIsImV4cCI6MjA4MjI5Njc2Mn0.cGJ50ukq6HClaYMU7O15s2OpXSlKrtNnhftTmrfoWxk' // 你的 anon public Key
 )
 
 export default function Home() {
@@ -154,4 +155,16 @@ export default function Home() {
       </main>
     </div>
   )
-}
+}{/* 在搜索结果列表上方添加这个提示框 */}
+{hasSearched && results.length > 0 && (
+  <div className="w-full max-w-3xl mb-6 bg-yellow-50 border border-yellow-100 rounded-lg p-4 flex gap-3 items-start">
+    <span className="text-xl">⚖️</span>
+    <div className="text-sm text-yellow-800">
+      <p className="font-bold mb-1">数据仅供参考，不作为最终核保依据</p>
+      <p className="opacity-90">
+        保险核保政策会随时间调整。本库数据来源于<span className="font-medium">过往病友真实反馈</span>及<span className="font-medium">互联网公开信息</span>，
+        仅供投保前思路参考。最终结论请以保险公司“智能核保”或“人工核保”的官方回执为准。
+      </p>
+    </div>
+  </div>
+)}
