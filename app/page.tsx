@@ -8,6 +8,45 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// 🏥 疾病同义词字典 (伪 AI 核心)
+// 系统会自动把左边的词（用户输入），翻译成右边的词（数据库标准词）去搜索
+// 你可以随时在这里补充新的词
+const DISEASE_MAP: Record<string, string> = {
+  // 乙肝类
+  '大三阳': '乙肝',
+  '小三阳': '乙肝',
+  '澳抗阳性': '乙肝',
+  '乙肝病毒': '乙肝',
+  '携带者': '乙肝',
+  'hbv': '乙肝',
+  // 甲状腺类
+  '甲癌': '甲状腺',
+  '甲减': '甲状腺',
+  '甲亢': '甲状腺',
+  '脖子粗': '甲状腺',
+  'ti-rads': '甲状腺',
+  'tirads': '甲状腺',
+  // 乳腺类
+  '小叶增生': '乳腺',
+  '纤维瘤': '乳腺',
+  'bi-rads': '乳腺',
+  'birads': '乳腺',
+  // 肺部类
+  '磨玻璃': '肺',
+  'ggo': '肺',
+  '肺气肿': '肺',
+  // 癌症类
+  'ca': '癌',
+  '恶性肿瘤': '癌',
+  '占位': '癌',
+  // 其他
+  '胖': '肥胖',
+  'bmi': '肥胖',
+  '糖': '糖尿病',
+  '高血脂': '三高',
+  '脂肪肝': '肝',
+}
+
 // 🚑 兜底方案 (100% 成功率保障)
 const SAFETY_NET_PLANS = [
   {
@@ -81,17 +120,34 @@ export default function Home() {
     }
   }
 
-  // 🔍 核心搜索逻辑 (已升级为智能分词版)
+  // 🔍 核心搜索逻辑 (包含同义词 + 智能分词)
   const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
     setHasSearched(true)
 
-    // 1. 🔪 智能分词：例如 "甲状腺结节 4a" -> ["甲状腺", "结节", "4a"]
-    const keywords = query.trim().split(/[\s,，+]+/); 
+    // 1. 🤖 智能意图识别 (查字典)
+    let smartQuery = query.toLowerCase();
+    let matchedSynonym = '';
+    
+    // 遍历字典，看用户输入里有没有同义词
+    Object.keys(DISEASE_MAP).forEach(key => {
+      if (smartQuery.includes(key)) {
+        // 如果用户输入包含 "大三阳"，我们把 "乙肝" 这个标准词加进去一起搜
+        // 这样既能搜到"大三阳"，也能搜到"乙肝"
+        matchedSynonym = DISEASE_MAP[key];
+      }
+    });
+
+    // 组合搜索词：原词 + 同义词
+    // 例如用户搜 "大三阳"，实际搜索词变成 "大三阳 乙肝"
+    const finalQueryString = matchedSynonym ? `${query} ${matchedSynonym}` : query;
+
+    // 2. 🔪 智能分词
+    const keywords = finalQueryString.trim().split(/[\s,，+]+/); 
     const primaryKeyword = keywords[0]; // 用第一个词去数据库“海选”
 
-    // 2. 🌊 数据库海选
+    // 3. 🌊 数据库海选
     const { data, error } = await supabase
       .from('cases')
       .select('*')
@@ -106,7 +162,7 @@ export default function Home() {
 
     let cases = data || []
 
-    // 3. ⚖️ 前端精筛排序
+    // 4. ⚖️ 前端精筛排序
     if (keywords.length > 1) {
       cases = cases.map(item => {
         let score = 0;
@@ -122,7 +178,7 @@ export default function Home() {
 
     setResults(cases)
 
-    // 4. 📊 统计与风险判定
+    // 5. 📊 统计与风险判定
     if (cases.length > 0) {
       const total = cases.length
       const passCount = cases.filter(c => c.verdict === 'pass').length
@@ -189,7 +245,7 @@ export default function Home() {
           </h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">
             全网最全核保数据库。
-            <span className="text-blue-600 font-medium">AI 杠杆配置</span>，
+            <span className="text-blue-600 font-medium">AI 智能匹配</span>，
             帮您找到 <span className="font-bold text-gray-900">赔得最多、保得最全</span> 的组合方案。
           </p>
         </div>
@@ -198,7 +254,7 @@ export default function Home() {
         <div className="max-w-2xl mx-auto relative mb-12 group">
           <input
             type="text"
-            placeholder="输入疾病名（如：甲状腺结节、4a级、术后）..."
+            placeholder="输入疾病名（如：大三阳、磨玻璃结节、小叶增生）..."
             className="w-full h-16 pl-8 pr-32 rounded-full border-2 border-gray-100 shadow-sm text-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all hover:border-blue-200"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -208,7 +264,7 @@ export default function Home() {
             onClick={handleSearch}
             className="absolute right-2 top-2 h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all shadow-md hover:shadow-lg active:scale-95"
           >
-            {loading ? '定制中...' : '生成攻略'}
+            {loading ? '分析中...' : '生成攻略'}
           </button>
         </div>
 
