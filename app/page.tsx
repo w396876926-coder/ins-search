@@ -88,16 +88,32 @@ export default function Home() {
     }
   }
 
+  // ... 前面的代码不变 ...
+
   const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
     setHasSearched(true)
 
-    const { data, error } = await supabase
+    // 1. 🔪 智能分词：把用户输入的长句子拆成关键词数组
+    // 例如："甲状腺结节 4a级" -> ["甲状腺", "结节", "4a"]
+    const keywords = query.trim().split(/[\s,，+]+/); // 支持空格、逗号、加号分隔
+
+    // 2. 🔍 构造多重搜索条件
+    // 只要 title, content, disease_type 里包含任意一个关键词，就先捞出来
+    let supabaseQuery = supabase
       .from('cases')
       .select('*')
-      .or(`disease_type.ilike.%${query}%, content.ilike.%${query}%, product_name.ilike.%${query}%`)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    // 这一步比较 tricky，Supabase 的简单 OR 语法很难做多关键词。
+    // 我们采用“宽进严出”策略：先用最核心的词搜（取第一个词），然后在前端做精细过滤。
+    // 如果用户搜的是“甲状腺 4a”，我们先搜所有含“甲状腺”的，再在前端找含“4a”的。
+    const primaryKeyword = keywords[0]; 
+    
+    // 如果有多个词，我们先用第一个词去数据库“海选”
+    const { data, error } = await supabaseQuery
+      .or(`disease_type.ilike.%${primaryKeyword}%, content.ilike.%${primaryKeyword}%, product_name.ilike.%${primaryKeyword}%`)
 
     if (error) {
       console.error(error)
@@ -105,48 +121,73 @@ export default function Home() {
       return
     }
 
-    const cases = data || []
+    let cases = data || []
+
+    // 3. ⚖️ 前端二次精筛与排序 (核心优化)
+    if (keywords.length > 1) {
+      // 给每个结果打分
+      cases = cases.map(item => {
+        let score = 0;
+        const fullText = (item.disease_type + item.content + item.product_name).toLowerCase();
+        
+        keywords.forEach(kw => {
+          if (fullText.includes(kw.toLowerCase())) score += 1;
+        });
+        
+        return { ...item, score };
+      })
+      // 过滤掉分数为0的（虽然理论上第一步已经保证了至少匹配一个）
+      .filter(item => item.score > 0)
+      // 按匹配度排序：匹配词越多的越靠前
+      .sort((a, b) => b.score - a.score);
+    }
+
     setResults(cases)
 
+    // ... 后面的统计逻辑(stats)不变 ...
     if (cases.length > 0) {
-      const total = cases.length
-      const passCount = cases.filter(c => c.verdict === 'pass').length
-      const excludeCount = cases.filter(c => c.verdict === 'exclude').length
-      const rejectCount = cases.filter(c => c.verdict === 'reject').length
+       // ... (保留之前的统计代码) ...
+       // (为了节省篇幅，这里只要保留你原来的 setStats 逻辑即可)
+       const total = cases.length
+       const passCount = cases.filter(c => c.verdict === 'pass').length
+       const excludeCount = cases.filter(c => c.verdict === 'exclude').length
+       const rejectCount = cases.filter(c => c.verdict === 'reject').length
       
-      const bestCase = cases.find(c => c.verdict === 'pass')
+       const bestCase = cases.find(c => c.verdict === 'pass')
       
-      // 判定风险等级
-      let calculatedRisk = '低'
-      if (rejectCount / total > 0.5) {
-        calculatedRisk = '高'
-      } else if ((excludeCount + rejectCount) / total > 0.4) {
-        calculatedRisk = '中'
-      }
+       let calculatedRisk = '低'
+       if (rejectCount / total > 0.5) {
+         calculatedRisk = '高'
+       } else if ((excludeCount + rejectCount) / total > 0.4) {
+         calculatedRisk = '中'
+       }
 
-      setStats({
-        total,
-        passRate: Math.round((passCount / total) * 100),
-        excludeRate: Math.round((excludeCount / total) * 100),
-        rejectRate: Math.round((rejectCount / total) * 100),
-        bestCompany: bestCase ? (bestCase.product_name || bestCase.company) : '商业险难度大',
-        riskLevel: calculatedRisk,
-        needsRescue: calculatedRisk === '高'
-      })
+       setStats({
+         total,
+         passRate: Math.round((passCount / total) * 100),
+         excludeRate: Math.round((excludeCount / total) * 100),
+         rejectRate: Math.round((rejectCount / total) * 100),
+         bestCompany: bestCase ? (bestCase.product_name || bestCase.company) : '商业险难度大',
+         riskLevel: calculatedRisk,
+         needsRescue: calculatedRisk === '高'
+       })
     } else {
-      // 没搜到数据，默认高风险兜底
-      setStats({
-        total: 0,
-        passRate: 0,
-        excludeRate: 0,
-        rejectRate: 0,
-        bestCompany: '暂无数据',
-        riskLevel: '高',
-        needsRescue: true 
-      })
+       // 没搜到 -> 兜底
+       setStats({
+         total: 0,
+         passRate: 0,
+         excludeRate: 0,
+         rejectRate: 0,
+         bestCompany: '暂无数据',
+         riskLevel: '高',
+         needsRescue: true 
+       })
     }
     
     setLoading(false)
+  }
+
+  // ... 后面的代码不变 ...
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
