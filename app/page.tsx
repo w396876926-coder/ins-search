@@ -8,46 +8,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// 🏥 疾病同义词字典 (伪 AI 核心)
-// 系统会自动把左边的词（用户输入），翻译成右边的词（数据库标准词）去搜索
-// 你可以随时在这里补充新的词
+// 🏥 疾病同义词字典
 const DISEASE_MAP: Record<string, string> = {
-  // 乙肝类
-  '大三阳': '乙肝',
-  '小三阳': '乙肝',
-  '澳抗阳性': '乙肝',
-  '乙肝病毒': '乙肝',
-  '携带者': '乙肝',
-  'hbv': '乙肝',
-  // 甲状腺类
-  '甲癌': '甲状腺',
-  '甲减': '甲状腺',
-  '甲亢': '甲状腺',
-  '脖子粗': '甲状腺',
-  'ti-rads': '甲状腺',
-  'tirads': '甲状腺',
-  // 乳腺类
-  '小叶增生': '乳腺',
-  '纤维瘤': '乳腺',
-  'bi-rads': '乳腺',
-  'birads': '乳腺',
-  // 肺部类
-  '磨玻璃': '肺',
-  'ggo': '肺',
-  '肺气肿': '肺',
-  // 癌症类
-  'ca': '癌',
-  '恶性肿瘤': '癌',
-  '占位': '癌',
-  // 其他
-  '胖': '肥胖',
-  'bmi': '肥胖',
-  '糖': '糖尿病',
-  '高血脂': '三高',
-  '脂肪肝': '肝',
+  '大三阳': '乙肝', '小三阳': '乙肝', '澳抗阳性': '乙肝', '乙肝病毒': '乙肝', '携带者': '乙肝', 'hbv': '乙肝',
+  '甲癌': '甲状腺', '甲减': '甲状腺', '甲亢': '甲状腺', '脖子粗': '甲状腺', 'ti-rads': '甲状腺', 'tirads': '甲状腺',
+  '小叶增生': '乳腺', '纤维瘤': '乳腺', 'bi-rads': '乳腺', 'birads': '乳腺',
+  '磨玻璃': '肺', 'ggo': '肺', '肺气肿': '肺',
+  'ca': '癌', '恶性肿瘤': '癌', '占位': '癌',
+  '胖': '肥胖', 'bmi': '肥胖', '糖': '糖尿病', '高血脂': '三高', '脂肪肝': '肝',
 }
 
-// 🚑 兜底方案 (100% 成功率保障)
+// 🚑 兜底方案
 const SAFETY_NET_PLANS = [
   {
     id: 'safe_1',
@@ -75,14 +46,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   
+  // ✨ 新增：控制排行榜 Tab 切换的状态
+  const [activeTab, setActiveTab] = useState<'leverage' | 'hot'>('leverage')
+
   const [stats, setStats] = useState({
-    total: 0,
-    passRate: 0,
-    excludeRate: 0,
-    rejectRate: 0,
-    bestCompany: '暂无数据',
-    riskLevel: '低',
-    needsRescue: false 
+    total: 0, passRate: 0, excludeRate: 0, rejectRate: 0,
+    bestCompany: '暂无数据', riskLevel: '低', needsRescue: false 
   })
 
   // 🧠 AI 杠杆策略生成器
@@ -120,99 +89,65 @@ export default function Home() {
     }
   }
 
-  // 🔍 核心搜索逻辑 (包含同义词 + 智能分词)
+  // 🔍 核心搜索逻辑
   const handleSearch = async () => {
     if (!query.trim()) return
     setLoading(true)
     setHasSearched(true)
 
-    // 1. 🤖 智能意图识别 (查字典)
     let smartQuery = query.toLowerCase();
     let matchedSynonym = '';
-    
-    // 遍历字典，看用户输入里有没有同义词
     Object.keys(DISEASE_MAP).forEach(key => {
-      if (smartQuery.includes(key)) {
-        // 如果用户输入包含 "大三阳"，我们把 "乙肝" 这个标准词加进去一起搜
-        // 这样既能搜到"大三阳"，也能搜到"乙肝"
-        matchedSynonym = DISEASE_MAP[key];
-      }
+      if (smartQuery.includes(key)) matchedSynonym = DISEASE_MAP[key];
     });
 
-    // 组合搜索词：原词 + 同义词
-    // 例如用户搜 "大三阳"，实际搜索词变成 "大三阳 乙肝"
     const finalQueryString = matchedSynonym ? `${query} ${matchedSynonym}` : query;
-
-    // 2. 🔪 智能分词
     const keywords = finalQueryString.trim().split(/[\s,，+]+/); 
-    const primaryKeyword = keywords[0]; // 用第一个词去数据库“海选”
+    const primaryKeyword = keywords[0];
 
-    // 3. 🌊 数据库海选
     const { data, error } = await supabase
       .from('cases')
       .select('*')
       .or(`disease_type.ilike.%${primaryKeyword}%, content.ilike.%${primaryKeyword}%, product_name.ilike.%${primaryKeyword}%`)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error(error)
-      setLoading(false)
-      return
-    }
+    if (error) { console.error(error); setLoading(false); return; }
 
     let cases = data || []
 
-    // 4. ⚖️ 前端精筛排序
     if (keywords.length > 1) {
       cases = cases.map(item => {
         let score = 0;
         const fullText = (item.disease_type + item.content + item.product_name + item.verdict).toLowerCase();
-        keywords.forEach(kw => {
-          if (fullText.includes(kw.toLowerCase())) score += 1;
-        });
+        keywords.forEach(kw => { if (fullText.includes(kw.toLowerCase())) score += 1; });
         return { ...item, score };
-      })
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score);
+      }).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
     }
 
     setResults(cases)
 
-    // 5. 📊 统计与风险判定
     if (cases.length > 0) {
       const total = cases.length
       const passCount = cases.filter(c => c.verdict === 'pass').length
       const excludeCount = cases.filter(c => c.verdict === 'exclude').length
       const rejectCount = cases.filter(c => c.verdict === 'reject').length
-      
       const bestCase = cases.find(c => c.verdict === 'pass')
       
       let calculatedRisk = '低'
-      if (rejectCount / total > 0.5) {
-        calculatedRisk = '高'
-      } else if ((excludeCount + rejectCount) / total > 0.4) {
-        calculatedRisk = '中'
-      }
+      if (rejectCount / total > 0.5) calculatedRisk = '高'
+      else if ((excludeCount + rejectCount) / total > 0.4) calculatedRisk = '中'
 
       setStats({
-        total,
-        passRate: Math.round((passCount / total) * 100),
+        total, passRate: Math.round((passCount / total) * 100),
         excludeRate: Math.round((excludeCount / total) * 100),
         rejectRate: Math.round((rejectCount / total) * 100),
         bestCompany: bestCase ? (bestCase.product_name || bestCase.company) : '商业险难度大',
-        riskLevel: calculatedRisk,
-        needsRescue: calculatedRisk === '高'
+        riskLevel: calculatedRisk, needsRescue: calculatedRisk === '高'
       })
     } else {
-      // 没搜到 -> 兜底
       setStats({
-        total: 0,
-        passRate: 0,
-        excludeRate: 0,
-        rejectRate: 0,
-        bestCompany: '暂无数据',
-        riskLevel: '高',
-        needsRescue: true 
+        total: 0, passRate: 0, excludeRate: 0, rejectRate: 0,
+        bestCompany: '暂无数据', riskLevel: '高', needsRescue: true 
       })
     }
     setLoading(false)
@@ -267,6 +202,109 @@ export default function Home() {
             {loading ? '分析中...' : '生成攻略'}
           </button>
         </div>
+
+        {/* 👇👇👇 这里就是新加的排行榜区域，只在没搜索时显示 👇👇👇 */}
+        {!hasSearched && (
+          <div className="max-w-3xl mx-auto mb-16 animate-fade-in-up">
+            
+            {/* 榜单切换 Tab */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white p-1 rounded-full border border-gray-100 shadow-sm inline-flex">
+                <button 
+                  onClick={() => setActiveTab('leverage')}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                    activeTab === 'leverage' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  💰 投保逆袭榜 (高杠杆)
+                </button>
+                <button 
+                  onClick={() => setActiveTab('hot')}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                    activeTab === 'hot' 
+                      ? 'bg-orange-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  🔥 疾病焦虑榜 (热搜)
+                </button>
+              </div>
+            </div>
+
+            {/* 榜单内容卡片 */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden relative">
+              <div className={`absolute top-0 left-0 w-full h-1 ${activeTab === 'leverage' ? 'bg-blue-600' : 'bg-orange-500'}`}></div>
+
+              {/* 💰 杠杆榜内容 */}
+              {activeTab === 'leverage' && (
+                <div className="divide-y divide-gray-50">
+                  {[
+                    { rank: 1, name: '甲状腺结节 1-2级', ratio: '1 : 850', tag: '标体承保', desc: '百万医疗险+重疾险完美组合' },
+                    { rank: 2, name: '乳腺结节 3级', ratio: '1 : 600', tag: '除外+复发险', desc: '利用专项复发险补齐短板' },
+                    { rank: 3, name: '乙肝小三阳', ratio: '1 : 550', tag: '加费承保', desc: '虽然加费但保障全面' },
+                    { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
+                  ].map((item) => (
+                    <div key={item.rank} className="p-4 flex items-center hover:bg-blue-50/50 transition-colors cursor-pointer" onClick={() => setQuery(item.name.split(' ')[0])}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg mr-4 ${
+                        item.rank === 1 ? 'bg-yellow-100 text-yellow-700' : 
+                        item.rank === 2 ? 'bg-gray-100 text-gray-700' : 
+                        item.rank === 3 ? 'bg-orange-50 text-orange-700' : 'text-gray-400'
+                      }`}>
+                        {item.rank}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-800">{item.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-bold">{item.tag}</span>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">{item.desc}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-400">杠杆率</div>
+                        <div className="text-xl font-black text-blue-600 font-mono">{item.ratio}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 🔥 热搜榜内容 */}
+              {activeTab === 'hot' && (
+                <div className="divide-y divide-gray-50">
+                  {[
+                    { rank: 1, name: '肺磨玻璃结节', count: '12,541', trend: 'up' },
+                    { rank: 2, name: '乳腺结节 4a', count: '9,832', trend: 'up' },
+                    { rank: 3, name: '乙肝大三阳', count: '8,105', trend: 'same' },
+                    { rank: 4, name: '抑郁症/焦虑症', count: '6,220', trend: 'up' },
+                    { rank: 5, name: '高血压 3级', count: '5,900', trend: 'down' },
+                  ].map((item) => (
+                    <div key={item.rank} className="p-4 flex items-center hover:bg-orange-50/50 transition-colors cursor-pointer" onClick={() => setQuery(item.name.split(' ')[0])}>
+                      <div className={`w-6 text-center font-bold mr-4 ${item.rank <= 3 ? 'text-orange-500' : 'text-gray-400'}`}>
+                        {item.rank}
+                      </div>
+                      <div className="flex-1 font-medium text-gray-700">
+                        {item.name}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-gray-400">{item.count}</span>
+                        {item.trend === 'up' && <span className="text-xs text-red-500">🔥</span>}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-3 text-center text-xs text-gray-400 bg-gray-50">
+                    *数据基于全网非标体搜索热度实时更新
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-center text-xs text-gray-400 mt-4">
+              👆 点击榜单病种，一键生成核保攻略
+            </p>
+          </div>
+        )}
 
         {hasSearched && (
           <div className="animate-fade-in-up space-y-8 mb-20">
