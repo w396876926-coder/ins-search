@@ -46,7 +46,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   
-  // ✨ 新增：控制排行榜 Tab 切换的状态
   const [activeTab, setActiveTab] = useState<'leverage' | 'hot'>('leverage')
 
   const [stats, setStats] = useState({
@@ -89,6 +88,17 @@ export default function Home() {
     }
   }
 
+  // 🕵️‍♂️ 搜索日志埋点 (偷偷记录用户搜了什么)
+  const logSearch = async (keyword: string, count: number) => {
+    try {
+      await supabase.from('search_logs').insert([
+        { keyword: keyword, result_count: count }
+      ])
+    } catch (e) {
+      console.error('Log failed', e) // 记录失败不影响主流程
+    }
+  }
+
   // 🔍 核心搜索逻辑
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -125,6 +135,9 @@ export default function Home() {
     }
 
     setResults(cases)
+
+    // ✨ 触发埋点记录 (不等待它完成，直接往下走)
+    logSearch(query, cases.length);
 
     if (cases.length > 0) {
       const total = cases.length
@@ -203,7 +216,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* 👇👇👇 这里就是新加的排行榜区域，只在没搜索时显示 👇👇👇 */}
         {!hasSearched && (
           <div className="max-w-3xl mx-auto mb-16 animate-fade-in-up">
             
