@@ -10,10 +10,9 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 数据字典与模拟数据 (新架构核心配置)
+// 1. 数据配置 (分类、专家、排序)
 // ==========================================
 
-// 🏷️ 快速分类入口 (对应需求 Point 1)
 const CATEGORIES = [
   { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
   { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝', '胆囊息肉'] },
@@ -22,20 +21,14 @@ const CATEGORIES = [
   { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔', '自闭症'] },
 ]
 
-// 👨‍⚕️ 颜值专家库 (对应需求 Point 5)
 const EXPERTS = [
-  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male', tags: ['帅哥', '逻辑强'] },
-  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', tags: ['美女', '温柔'] },
-  { id: 'e3', name: 'Chris', title: '前核保员', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris', gender: 'male', tags: ['严谨', '干货'] },
+  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male' },
+  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
 ]
 
-// 📊 排序选项 (对应需求 Point 3)
-type SortType = 'recommend' | 'leverage' | 'coverage' | 'reliability'
-const SORT_OPTIONS = [
-  { value: 'recommend', label: '综合推荐' },
-  { value: 'leverage', label: '💰 性价比高 (杠杆)' },
-  { value: 'coverage', label: '🛡️ 覆盖率广' },
-  { value: 'reliability', label: '🏢 可靠度高 (大公司)' },
+const SAFETY_NET_PLANS = [
+  { name: '各地“惠民保”', tag: '政府指导', desc: '不限年龄、职业、既往症。只要有当地医保，100% 可投保。', price: '约 100-200元/年' },
+  { name: '税优健康险', tag: '国家政策', desc: '国家强制要求保险公司承保，保证续保，既往症按比例赔付。', price: '费率适中' }
 ]
 
 export default function Home() {
@@ -43,10 +36,15 @@ export default function Home() {
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [activeSort, setActiveSort] = useState<SortType>('recommend')
-  const [selectedExpert, setSelectedExpert] = useState(EXPERTS[0]) // 默认选中第一个专家
+  const [selectedExpert, setSelectedExpert] = useState(EXPERTS[0])
 
-  // 🔍 搜索逻辑
+  // 📊 统计数据状态 (用于生成图三的分析面板)
+  const [stats, setStats] = useState({
+    passRate: 0, excludeRate: 0, rejectRate: 0,
+    riskLevel: '低', leverageRatio: '1 : 500'
+  })
+
+  // 🧠 核心搜索逻辑
   const handleSearch = async (keywordOverride?: string) => {
     const searchTerm = keywordOverride || query
     if (!searchTerm.trim()) return
@@ -55,202 +53,252 @@ export default function Home() {
     setLoading(true)
     setHasSearched(true)
 
-    // 调用 Supabase 查询
     const { data, error } = await supabase
       .from('cases')
       .select('*')
       .or(`disease_type.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%, product_name.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false })
 
-    if (data) {
-      // 模拟点击率和投产比数据 (因为数据库暂时没这两个字段，前端先模拟展示效果，为了 Point 3 的排序功能)
-      const enrichedData = data.map(item => ({
-        ...item,
-        clickRate: Math.floor(Math.random() * 5000) + 1000, // 模拟点击率
-        companyScore: item.company?.includes('平安') || item.company?.includes('人保') ? 9.8 : 8.5, // 模拟可靠度
-        leverageScore: item.product_name?.includes('惠民') ? 10000 : 8000 // 模拟杠杆
-      }))
-      setResults(enrichedData)
+    if (data && data.length > 0) {
+      setResults(data)
+      
+      // --- ⚡️ 实时计算胜率 (还原图三的功能) ---
+      const total = data.length
+      const passCount = data.filter(i => i.verdict === 'pass').length
+      const excludeCount = data.filter(i => i.verdict === 'exclude').length
+      const rejectCount = data.filter(i => i.verdict === 'reject').length
+      
+      let calculatedRisk = '低'
+      let ratio = '1 : 500' // 默认低风险高杠杆
+
+      if (rejectCount / total > 0.5) {
+        calculatedRisk = '高'
+        ratio = '1 : 80' // 高风险杠杆降低
+      } else if ((excludeCount + rejectCount) / total > 0.4) {
+        calculatedRisk = '中'
+        ratio = '1 : 200'
+      }
+
+      setStats({
+        passRate: Math.round(((passCount + excludeCount) / total) * 100), // 通过率 = 标体+除外
+        excludeRate: Math.round((excludeCount / total) * 100),
+        rejectRate: Math.round((rejectCount / total) * 100),
+        riskLevel: calculatedRisk,
+        leverageRatio: ratio
+      })
+    } else {
+      setResults([])
+      setStats({ passRate: 0, excludeRate: 0, rejectRate: 0, riskLevel: '未知', leverageRatio: '-' })
     }
     setLoading(false)
   }
 
-  // 🔄 排序逻辑 (对应需求 Point 3)
-  const sortedResults = [...results].sort((a, b) => {
-    if (activeSort === 'leverage') return b.leverageScore - a.leverageScore
-    if (activeSort === 'coverage') return b.clickRate - a.clickRate // 点击率高代表覆盖广
-    if (activeSort === 'reliability') return b.companyScore - a.companyScore
-    return 0 // 默认推荐
-  })
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch()
+  // 🔄 重置回首页 (对应问题 1)
+  const resetHome = () => {
+    setQuery('')
+    setHasSearched(false)
+    setResults([])
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F8F9FB] font-sans text-slate-900 pb-20">
       
-      {/* 顶部导航 & 创始人引流 (对应 Point 5) */}
+      {/* 顶部导航 */}
       <nav className="bg-white py-4 px-6 shadow-sm sticky top-0 z-50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
+        {/* ✅ 问题1解决：点击 Logo 回到首页 */}
+        <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={resetHome}>
           <span className="text-2xl">🛡️</span>
           <span className="font-bold text-gray-800 tracking-tight">HealthGuardian</span>
         </div>
         
-        {/* 右上角专家切换 */}
+        {/* 专家切换 */}
         <div className="flex items-center gap-3 cursor-pointer group">
-          <img src={selectedExpert.image} alt="Expert" className="w-10 h-10 rounded-full border-2 border-blue-100 group-hover:border-blue-500 transition-colors" />
+          <img src={selectedExpert.image} alt="Expert" className="w-9 h-9 rounded-full border border-gray-200 group-hover:border-blue-500" />
           <div className="text-xs text-right hidden md:block">
-            <div className="font-bold text-gray-800 group-hover:text-blue-600">专属顾问: {selectedExpert.name}</div>
-            <div className="text-gray-400 group-hover:text-blue-500">点此切换专家 &rarr;</div>
+            <div className="font-bold text-gray-800">顾问: {selectedExpert.name}</div>
+            <div className="text-gray-400 group-hover:text-blue-600">切换专家 &rarr;</div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 pt-12">
+      <main className="max-w-5xl mx-auto px-4 pt-12">
         
-        {/* 1. 搜索与快速分类区 (对应 Point 1) */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">
-            不确定自己属于哪类？<br className="md:hidden" />AI 帮你快速归类
-          </h1>
-          
-          <div className="relative max-w-2xl mx-auto mb-8">
-            <input
-              type="text"
-              placeholder="输入疾病名称（如：大三阳）..."
-              className="w-full h-14 pl-6 pr-32 rounded-full border-2 border-blue-100 shadow-sm focus:border-blue-500 focus:outline-none transition-all text-lg"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <button 
-              onClick={() => handleSearch()}
-              className="absolute right-2 top-2 h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all"
-            >
-              {loading ? '分析中...' : '搜索'}
-            </button>
-          </div>
-
-          {/* 快速分类 Tag (Point 1: 关键改动) */}
-          <div className="flex flex-wrap justify-center gap-3">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => handleSearch(cat.keywords[0])}
-                className="bg-white px-5 py-3 rounded-xl text-sm font-medium shadow-sm hover:shadow-md hover:text-blue-600 transition-all border border-transparent hover:border-blue-100 flex items-center gap-2"
-              >
-                <span className="text-lg">{cat.icon}</span> {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {hasSearched && (
-          <div className="animate-fade-in-up">
+        {/* =========================================
+            首页状态 (对应问题 2：还原图二的文案)
+           ========================================= */}
+        {!hasSearched ? (
+          <div className="text-center mt-10">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
+              身体有异常，<br className="md:hidden" />还能买保险吗？
+            </h1>
+            <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+              全网最全核保数据库。
+              <span className="text-blue-600 font-bold"> 智能匹配杠杆策略</span>，
+              帮您找到 <span className="font-bold text-gray-900">赔得最多、保得最全</span> 的组合方案。
+            </p>
             
-            {/* 2. 排序与筛选 (对应 Point 3) */}
-            <div className="flex flex-wrap gap-2 mb-6 justify-center md:justify-start">
-              {SORT_OPTIONS.map(opt => (
+            <div className="max-w-2xl mx-auto mb-12 relative">
+              <input
+                type="text"
+                placeholder="输入疾病名（如：肺结节、乳腺癌、高血压）..."
+                className="w-full h-16 pl-8 pr-36 rounded-full border-2 border-blue-100 shadow-lg shadow-blue-50 focus:border-blue-500 focus:outline-none transition-all text-lg"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button 
+                onClick={() => handleSearch()}
+                className="absolute right-2 top-2 h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all shadow-md"
+              >
+                {loading ? '分析中...' : '生成攻略'}
+              </button>
+            </div>
+
+            {/* 快速分类 */}
+            <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up">
+              {CATEGORIES.map(cat => (
                 <button
-                  key={opt.value}
-                  onClick={() => setActiveSort(opt.value as SortType)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                    activeSort === opt.value 
-                      ? 'bg-slate-900 text-white shadow-md' 
-                      : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
-                  }`}
+                  key={cat.id}
+                  onClick={() => handleSearch(cat.keywords[0])}
+                  className="bg-white px-5 py-3 rounded-2xl text-sm font-bold shadow-sm hover:shadow-md hover:text-blue-600 transition-all border border-transparent hover:border-blue-100 flex items-center gap-2"
                 >
-                  {opt.label}
+                  <span className="text-lg">{cat.icon}</span> {cat.name}
                 </button>
               ))}
             </div>
-
-            {/* 结果列表 */}
-            <div className="space-y-6">
-              {sortedResults.length > 0 ? sortedResults.map((item, index) => (
-                <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all group">
-                  
-                  {/* 核心信息区 */}
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        {/* 杠杆率计算公式 (对应 Point 2) */}
-                        <LeverageTag productName={item.product_name} />
-                        <h3 className="text-xl font-bold text-gray-900 mt-2 flex items-center gap-2">
-                          <span className="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-md">No.{index + 1}</span>
-                          {item.product_name || '推荐保险产品'}
-                        </h3>
-                        {/* 公司概况 (Point 4) */}
-                        <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
-                           <span>🏢 出品方：{item.company || '未知保司'}</span>
-                           <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                           <span>✅ 核保结论：{item.verdict === 'pass' ? '标体承保' : item.verdict === 'exclude' ? '除外承保' : '拒保'}</span>
-                        </div>
-                      </div>
-                      
-                      {/* 专家抖音引流 (对应 Point 4) */}
-                      <div className="hidden md:block text-center min-w-[80px]">
-                        <img src={selectedExpert.image} className="w-12 h-12 rounded-full mx-auto mb-2 border-2 border-blue-100" />
-                        <a href="#" className="block text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors">
-                          📺 专家解读
-                        </a>
-                      </div>
-                    </div>
-
-                    <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
-                      {item.content}
-                    </p>
-
-                    {/* 底部功能栏 (对应 Point 4 & 5) */}
-                    <div className="flex items-center justify-between border-t border-gray-50 pt-4 mt-4">
-                      <div className="flex items-center gap-4 text-xs text-gray-400">
-                        <span className="flex items-center gap-1">🔥 {item.clickRate} 人点击</span>
-                        <span className="flex items-center gap-1">⭐ 可靠度 {item.companyScore}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="px-4 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs font-bold hover:bg-gray-100 transition-colors">
-                          产品详情
-                        </button>
-                        <button className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-200 transition-all flex items-center gap-1">
-                          💬 免费咨询 {selectedExpert.name}
-                        </button>
-                      </div>
-                    </div>
+          </div>
+        ) : (
+          
+          /* =========================================
+             结果状态 (对应问题 3：融合图三分析 + 咨询)
+             ========================================= */
+          <div className="animate-fade-in-up space-y-8">
+            
+            {/* 1. 胜率分析大卡片 (完美还原图三) */}
+            <div className="bg-white rounded-3xl shadow-xl shadow-blue-50 overflow-hidden border border-gray-100">
+              <div className="p-8 border-b border-gray-50">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    📊 “{query}” 核保胜率分析
+                  </h2>
+                  <span className={`text-xs px-3 py-1 rounded-full font-bold ${
+                    stats.riskLevel === '高' ? 'bg-rose-100 text-rose-700' :
+                    stats.riskLevel === '中' ? 'bg-amber-100 text-amber-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {stats.riskLevel}风险
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-8 text-center md:text-left">
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1 font-medium">通过率 (含除外)</div>
+                    <div className="text-4xl font-black text-gray-900">{stats.passRate}%</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1 font-medium">拒保率</div>
+                    <div className="text-4xl font-black text-rose-500">{stats.rejectRate}%</div>
+                  </div>
+                  <div className="hidden md:block">
+                     <div className="text-sm text-gray-400 mb-1 font-medium">最佳承保机会</div>
+                     <div className="text-lg font-bold text-gray-800">
+                        {results.find(r => r.verdict === 'pass')?.company || '多家对比'}
+                     </div>
                   </div>
                 </div>
-              )) : (
-                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                  <p className="text-gray-400">暂无相关数据，换个关键词或分类试试？</p>
+              </div>
+
+              {/* 2. 杠杆策略 + 专家咨询 (这里是融合的关键点！) */}
+              <div className="bg-slate-50 p-6 md:p-8 flex flex-col md:flex-row gap-8 items-center">
+                
+                {/* 左侧：杠杆策略 (图三的内容) */}
+                <div className="flex-1 w-full bg-white rounded-2xl border border-blue-100 p-6 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="font-bold text-gray-900">💰 您的专属保障杠杆组合</div>
+                        <div className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">精准修补</div>
+                    </div>
+                    <div className="flex items-baseline gap-4">
+                        <div className="text-4xl font-black text-blue-600 font-mono">{stats.leverageRatio}</div>
+                        <div className="text-xs text-gray-400">投入1元 : 赔付{stats.leverageRatio.split(':')[1]}元</div>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                        <div className="flex gap-2 items-center text-sm">
+                            <span className="bg-blue-100 text-blue-700 text-[10px] px-1 rounded">主险</span>
+                            <span className="text-gray-600">重疾险 (接受除外) + 百万医疗</span>
+                        </div>
+                        <div className="flex gap-2 items-center text-sm">
+                            <span className="bg-amber-100 text-amber-700 text-[10px] px-1 rounded">补丁</span>
+                            <span className="text-gray-600">特定疾病/复发险 (填补除外缺口)</span>
+                        </div>
+                    </div>
                 </div>
-              )}
+
+                {/* 右侧：专家咨询 (您的咨询需求) */}
+                <div className="w-full md:w-auto min-w-[240px] text-center">
+                    <img src={selectedExpert.image} className="w-16 h-16 rounded-full mx-auto mb-3 border-4 border-white shadow-md" />
+                    <div className="font-bold text-gray-900 mb-1">方案太复杂？</div>
+                    <p className="text-xs text-gray-500 mb-4">让 {selectedExpert.name} 为您 1对1 解读核保结论</p>
+                    <button className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <span>💬 免费咨询 {selectedExpert.name}</span>
+                    </button>
+                    <div className="text-[10px] text-gray-400 mt-2">已有 {Math.floor(Math.random() * 500) + 200} 人咨询</div>
+                </div>
+
+              </div>
             </div>
 
-            {/* 底部专家墙 (对应 Point 5: 创始人/颜值引流) */}
-            <div className="mt-16 bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 text-white text-center">
-              <h3 className="text-xl font-bold mb-2">👩‍⚕️ 没找到合适的？</h3>
-              <p className="text-indigo-200 text-sm mb-6">选择一位您喜欢的顾问，1对1免费协助核保</p>
-              
-              <div className="flex justify-center gap-6 overflow-x-auto pb-4">
-                {EXPERTS.map(expert => (
-                  <div 
-                    key={expert.id}
-                    onClick={() => setSelectedExpert(expert)}
-                    className={`cursor-pointer p-4 rounded-xl transition-all min-w-[100px] ${
-                      selectedExpert.id === expert.id ? 'bg-white/20 ring-2 ring-white transform scale-105' : 'bg-white/5 hover:bg-white/10'
-                    }`}
-                  >
-                    <img src={expert.image} className="w-14 h-14 rounded-full mx-auto mb-3 bg-white" />
-                    <div className="font-bold text-sm">{expert.name}</div>
-                    <div className="text-xs text-indigo-200 mb-2">{expert.title}</div>
-                    <div className="flex gap-1 justify-center flex-wrap">
-                      {expert.tags.map(tag => (
-                        <span key={tag} className="text-[10px] bg-indigo-500/50 px-1.5 py-0.5 rounded">{tag}</span>
-                      ))}
+            {/* 3. 兜底方案 (如果全拒保) */}
+            {(stats.rejectRate > 80 || results.length === 0) && (
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-100 p-6">
+                <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">🛡️ 国家队兜底方案 (100% 可投保)</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {SAFETY_NET_PLANS.map((plan) => (
+                    <div key={plan.name} className="bg-white p-4 rounded-xl border border-orange-100 shadow-sm">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-bold text-gray-900">{plan.name}</span>
+                        <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">{plan.tag}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">{plan.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 4. 真实过往案例列表 */}
+            <div>
+               <h3 className="text-lg font-bold text-gray-900 mb-4 px-1">真实过往案例 ({results.length})</h3>
+               <div className="space-y-4">
+                {results.map((item) => (
+                  <div key={item.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <div className="flex gap-2 mb-2">
+                                {item.verdict === 'pass' && <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-bold">✅ 标体</span>}
+                                {item.verdict === 'exclude' && <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">⚠️ 除外</span>}
+                                {item.verdict === 'reject' && <span className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded text-xs font-bold">🚫 拒保</span>}
+                                <span className="text-xs text-gray-400 py-0.5">{item.product_name}</span>
+                            </div>
+                            <h4 className="font-bold text-gray-800 mb-2">{item.summary || item.content.substring(0, 20)}</h4>
+                            <LeverageTag productName={item.product_name} />
+                        </div>
+                        {/* 列表里的咨询按钮 */}
+                        <button className="hidden md:flex px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 items-center gap-1">
+                            <img src={selectedExpert.image} className="w-4 h-4 rounded-full" />
+                            <span>专家解读</span>
+                        </button>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-3 leading-relaxed">{item.content}</p>
+                    
+                    {/* 移动端显示的咨询按钮 */}
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-end md:hidden">
+                        <button className="w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-md">
+                            免费咨询 {selectedExpert.name}
+                        </button>
                     </div>
                   </div>
                 ))}
-              </div>
+               </div>
             </div>
 
           </div>
@@ -260,16 +308,10 @@ export default function Home() {
   )
 }
 
-// ==========================================
-// 杠杆标签组件 (保持不变，因为非常符合 Point 2)
-// ==========================================
+// 杠杆标签组件
 const LeverageTag = ({ productName }: { productName: string }) => {
   if (!productName) return null;
-
-  let style: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px',
-    fontSize: '11px', fontWeight: 700, marginBottom: '4px', backgroundColor: '#E3F2FD', color: '#1565C0',
-  };
+  let style: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: '#E3F2FD', color: '#1565C0' };
   let text = '🔵 基础杠杆';
 
   if (productName.includes('众民保') || productName.includes('惠民')) {
@@ -279,6 +321,5 @@ const LeverageTag = ({ productName }: { productName: string }) => {
   } else if (productName.includes('重疾') || productName.includes('达尔文')) {
     style.backgroundColor = '#FFF8E1'; style.color = '#F57F17'; text = '🟡 100倍杠杆 | 收入补偿';
   }
-
   return <span style={style}>{text}</span>;
 };
