@@ -10,7 +10,7 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 静态数据配置
+// 1. 静态数据配置 (全中文)
 // ==========================================
 
 const EXPERTS = [
@@ -56,7 +56,7 @@ export default function Home() {
   const [selectedExpert, setSelectedExpert] = useState(EXPERTS[0])
   const [tickerIndex, setTickerIndex] = useState(0)
   
-  // 交互状态
+  // 交互状态 (保留您喜欢的 V3.0 逻辑)
   const [activeHomeTab, setActiveHomeTab] = useState<'leverage' | 'hot'>('leverage')
   const [activeSort, setActiveSort] = useState<SortType>('recommend')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
@@ -80,7 +80,7 @@ export default function Home() {
     
     if (keywordOverride) setQuery(keywordOverride)
     
-    // 进入 AI 分析模式
+    // 进入 AI 分析模式 (V5.0 特效)
     setHasSearched(false)
     setAnalyzing(true)
     setExpandedProductId(null)
@@ -101,7 +101,7 @@ export default function Home() {
     }, 1500)
   }
 
-  // 📸 图片上传/拍照逻辑
+  // 📸 图片上传/拍照逻辑 (V5.0 功能)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -125,7 +125,7 @@ export default function Home() {
     }
   }
 
-  // 🔄 数据聚合逻辑 (核心融合点)
+  // 🔄 数据聚合逻辑 (这是您喜欢的 V3.0 版本的核心逻辑，已恢复)
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
     const map: Record<string, any> = {}
@@ -133,6 +133,7 @@ export default function Home() {
     rawCases.forEach(item => {
       const pName = item.product_name || '未知产品'
       if (!map[pName]) {
+        // 恢复中文判断逻辑
         const baseScore = pName.includes('惠民') ? 85 : (pName.includes('医疗') ? 92 : 95)
         const randomFluctuation = Math.floor(Math.random() * 5)
         
@@ -143,6 +144,7 @@ export default function Home() {
           matchScore: baseScore + randomFluctuation,
           passCount: 0,
           totalCount: 0,
+          // 恢复中文关键词权重
           leverageScore: pName.includes('惠民') ? 10000 : (pName.includes('医疗') ? 8000 : 100),
           companyScore: (item.company?.includes('平安') || item.company?.includes('人保')) ? 9.8 : 8.5,
           coverageScore: Math.floor(Math.random() * 2000) + 500
@@ -155,6 +157,7 @@ export default function Home() {
     
     let productList = Object.values(map)
 
+    // 恢复 V3.0 的排序逻辑
     productList.sort((a: any, b: any) => {
       if (activeSort === 'leverage') return b.leverageScore - a.leverageScore
       if (activeSort === 'company') return b.companyScore - a.companyScore
@@ -175,6 +178,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-sans text-slate-900 pb-32">
       
+      {/* 隐藏的文件输入框 */}
       <input 
         type="file" 
         accept="image/*" 
@@ -206,7 +210,7 @@ export default function Home() {
       <main className="max-w-4xl mx-auto px-4 pt-8">
         
         {/* =========================================
-            状态 A: 首页 (AI 输入 + 榜单)
+            状态 A: 首页 (AI 输入 + V3.0 榜单)
            ========================================= */}
         {!hasSearched && !analyzing ? (
           <div className="text-center mt-10 animate-fade-in-up">
@@ -256,7 +260,7 @@ export default function Home() {
                ))}
             </div>
 
-             {/* 首页榜单 */}
+             {/* 首页榜单 (V3.0 样式) */}
             <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden text-left">
                <div className="flex border-b border-gray-50">
                   <button 
@@ -295,7 +299,7 @@ export default function Home() {
           </div>
         ) : analyzing ? (
           /* =========================================
-             状态 B: 模拟分析中
+             状态 B: 模拟分析中 (V5.0 动画)
              ========================================= */
           <div className="flex flex-col items-center justify-center pt-20">
              <div className="relative w-24 h-24 mb-8">
@@ -311,11 +315,11 @@ export default function Home() {
           </div>
         ) : (
           /* =========================================
-             状态 C: 结果页 (黑金诊断卡 + 列表)
+             状态 C: 结果页 (黑金诊断卡 + V3.0 列表)
              ========================================= */
           <div className="animate-fade-in-up pb-24">
             
-            {/* 1. AI 诊断卡片 (深色主题) */}
+            {/* 1. AI 诊断卡片 (深色主题 - 您的最爱) */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 md:p-8 text-white shadow-2xl shadow-slate-900/20 mb-8 relative overflow-hidden">
                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none"></div>
                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -354,7 +358,7 @@ export default function Home() {
                ))}
             </div>
 
-            {/* 3. 聚合产品列表 */}
+            {/* 3. 聚合产品列表 (V3.0 核心逻辑：可展开 + 案例) */}
             <div className="flex items-center justify-between mb-4 px-2">
                <h3 className="font-bold text-gray-900">为您匹配到 {aggregatedProducts.length} 款产品</h3>
             </div>
@@ -365,6 +369,7 @@ export default function Home() {
                    {aggregatedProducts.map((product: any, idx) => (
                      <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${expandedProductId === product.name ? 'border-blue-500 shadow-lg ring-2 ring-blue-50' : 'border-gray-100 shadow-sm hover:border-blue-200'}`}>
                         
+                        {/* 卡片头部 (点击展开) */}
                         <div 
                           className="p-5 cursor-pointer flex flex-col md:flex-row gap-4 md:items-center relative"
                           onClick={() => setExpandedProductId(expandedProductId === product.name ? null : product.name)}
@@ -383,7 +388,7 @@ export default function Home() {
                               </div>
                               <div className="text-xs text-gray-400 flex items-center gap-3">
                                  <span>🏢 {product.company}</span>
-                                 <span>📄 收录案例: {product.totalCount}</span>
+                                 <span>📄 收录案例: {product.totalCount} 条</span>
                                  <span className={`font-bold ${product.matchScore > 90 ? 'text-green-600' : 'text-yellow-600'}`}>匹配度: {product.matchScore}%</span>
                               </div>
                            </div>
@@ -401,7 +406,7 @@ export default function Home() {
                            </div>
                         </div>
 
-                        {/* 展开的详情页 */}
+                        {/* 展开的详情页 (V3.0 逻辑) */}
                         {expandedProductId === product.name && (
                            <div className="bg-slate-50 border-t border-gray-100 p-5 animate-fade-in-down">
                               <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -476,6 +481,7 @@ export default function Home() {
   )
 }
 
+// 杠杆标签 (保留中文逻辑)
 const LeverageTag = ({ productName }: { productName: string }) => {
   if (!productName) return null;
   let bg = '#F1F5F9', color = '#475569', text = '基础杠杆';
