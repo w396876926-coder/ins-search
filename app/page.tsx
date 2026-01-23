@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react' // ✅ 新增 useRef
+import { useState, useMemo, useRef, useEffect } from 'react' // ✅ 引入 useEffect
 import { createClient } from '@supabase/supabase-js'
 
 // 初始化 Supabase
@@ -12,6 +12,14 @@ const supabase = createClient(
 // ==========================================
 // 1. 静态数据配置
 // ==========================================
+
+// 📢 新增：实时成交快讯文案
+const LIVE_TICKER = [
+  '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
+  '👏 5分钟前，北京李先生（乙肝大三阳）通过人工核保，标体承保',
+  '👏 12分钟前，广州王先生（肺结节）成功领取【众民保】理赔金',
+  '👏 刚刚，深圳赵女士预约了 Alex 的1对1核保服务',
+]
 
 const CATEGORIES = [
   { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
@@ -47,13 +55,21 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [selectedExpert, setSelectedExpert] = useState(EXPERTS[0])
+  const [tickerIndex, setTickerIndex] = useState(0) // 📢 新增：跑马灯状态
   
   const [activeHomeTab, setActiveHomeTab] = useState<'leverage' | 'hot'>('leverage')
   const [activeSort, setActiveSort] = useState<SortType>('recommend')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
 
-  // 📷 1. 新增：文件输入框的引用
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 🔄 新增：自动轮播跑马灯逻辑
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % LIVE_TICKER.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSearch = async (keywordOverride?: string) => {
     const searchTerm = keywordOverride || query
@@ -76,23 +92,20 @@ export default function Home() {
     setLoading(false)
   }
 
-  // 📷 2. 新增：处理拍照/上传图片逻辑
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
         setLoading(true)
-        setQuery(`正在识别: ${file.name}...`) // 界面反馈
+        setQuery(`正在识别: ${file.name}...`)
         
-        // 模拟 OCR 识别过程 (2秒后出结果)
         setTimeout(() => {
-            const mockResult = '甲状腺结节' // 这里模拟识别到了甲状腺
+            const mockResult = '甲状腺结节'
             setQuery(`AI识别结果：${mockResult}`)
-            handleSearch(mockResult) // 自动触发搜索
+            handleSearch(mockResult)
         }, 1500)
     }
   }
 
-  // 🔄 核心数据聚合逻辑
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
 
@@ -136,17 +149,24 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-32">
       
-      {/* 📷 3. 新增：隐藏的文件上传控件 */}
+      {/* 隐藏的文件输入框 */}
       <input 
         type="file" 
         accept="image/*" 
-        capture="environment" // 优先调起手机摄像头
+        capture="environment"
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileUpload}
       />
+
+      {/* 📢 新增：顶部黑色跑马灯 */}
+      <div className="bg-slate-900 text-white text-xs py-2 px-4 text-center overflow-hidden relative">
+         <div className="animate-fade-in-up key={tickerIndex}">
+            {LIVE_TICKER[tickerIndex]}
+         </div>
+      </div>
 
       <nav className="bg-white py-4 px-6 shadow-sm sticky top-0 z-50 flex justify-between items-center">
         <div className="flex items-center gap-2 cursor-pointer hover:opacity-80" onClick={resetHome}>
@@ -173,10 +193,9 @@ export default function Home() {
               全网核保大数据库 · <span className="text-blue-600 font-bold">AI 智能匹配</span> · 拒保复活攻略
             </p>
             
-            {/* 📷 4. 修改：搜索框增加了相机按钮 */}
             <div className="max-w-2xl mx-auto mb-10 relative">
               
-              {/* 左侧相机按钮 */}
+              {/* 📷 相机按钮 */}
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-2xl bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
@@ -381,6 +400,26 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* 📢 新增：底部悬浮救援条 (Sticky Bar) */}
+      <div className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[600px] z-50">
+         <div className="bg-white/90 backdrop-blur-lg border border-white/20 shadow-2xl shadow-blue-900/20 rounded-2xl p-2 pl-5 flex items-center justify-between ring-1 ring-gray-900/5">
+            <div className="flex items-center gap-3">
+               <div className="relative">
+                  <img src={selectedExpert.image} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+               </div>
+               <div className="text-xs">
+                  <div className="font-bold text-gray-900">看不懂方案？</div>
+                  <div className="text-gray-500">让 {selectedExpert.name} 帮您把关</div>
+               </div>
+            </div>
+            <button className="bg-blue-600 text-white text-sm font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 hover:scale-105 transition-transform">
+               免费咨询
+            </button>
+         </div>
+      </div>
+
     </div>
   )
 }
