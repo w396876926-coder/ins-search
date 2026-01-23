@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react' // ✅ 新增 useRef
 import { createClient } from '@supabase/supabase-js'
 
 // 初始化 Supabase
@@ -10,27 +10,20 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 静态数据配置 (全中文)
+// 1. 静态数据配置
 // ==========================================
 
-const EXPERTS = [
-  { id: 'e1', name: 'Alex', title: '首席核保官', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', desc: '前平安核保部经理，经手 3000+ 非标体案例' },
-  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', desc: '临床医学硕士，擅长结节/三高核保' },
-]
-
-const LIVE_TICKER = [
-  '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
-  '👏 5分钟前，北京李先生（乙肝大三阳）通过人工核保，标体承保',
-  '👏 12分钟前，广州王先生（肺结节）成功领取【众民保】理赔金',
-  '👏 刚刚，深圳赵女士预约了 Alex 的1对1核保服务',
-]
-
 const CATEGORIES = [
-  { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节'] },
-  { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝'] },
-  { id: 'metabolic', name: '三高/慢病', icon: '🍔', keywords: ['高血压', '糖尿病'] },
-  { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症'] },
-  { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '自闭症'] },
+  { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
+  { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝', '胆囊息肉'] },
+  { id: 'metabolic', name: '三高/痛风', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
+  { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症', '睡眠障碍'] },
+  { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔', '自闭症'] },
+]
+
+const EXPERTS = [
+  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male' },
+  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -50,230 +43,189 @@ const SORT_OPTIONS = [
 
 export default function Home() {
   const [query, setQuery] = useState('')
-  const [rawCases, setRawCases] = useState<any[]>([])
-  const [analyzing, setAnalyzing] = useState(false) // AI 分析状态
+  const [rawCases, setRawCases] = useState<any[]>([]) 
+  const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [selectedExpert, setSelectedExpert] = useState(EXPERTS[0])
-  const [tickerIndex, setTickerIndex] = useState(0)
   
-  // 交互状态 (保留您喜欢的 V3.0 逻辑)
   const [activeHomeTab, setActiveHomeTab] = useState<'leverage' | 'hot'>('leverage')
   const [activeSort, setActiveSort] = useState<SortType>('recommend')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
-  
-  // 摄像头引用
+
+  // 📷 1. 新增：文件输入框的引用
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 🔄 跑马灯逻辑
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % LIVE_TICKER.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // 🧠 搜索与 AI 分析逻辑
   const handleSearch = async (keywordOverride?: string) => {
     const searchTerm = keywordOverride || query
-    // 允许空搜索以便演示
-    if (!searchTerm.trim() && !keywordOverride) return 
+    if (!searchTerm.trim()) return
     
     if (keywordOverride) setQuery(keywordOverride)
-    
-    // 进入 AI 分析模式 (V5.0 特效)
-    setHasSearched(false)
-    setAnalyzing(true)
+    setLoading(true)
+    setHasSearched(true)
     setExpandedProductId(null)
-    
-    // 延迟 1.5秒 模拟分析过程
-    setTimeout(async () => {
-        const finalSearch = searchTerm || '结节'
 
-        const { data } = await supabase
-        .from('cases')
-        .select('*')
-        .or(`disease_type.ilike.%${finalSearch}%, content.ilike.%${finalSearch}%, product_name.ilike.%${finalSearch}%`)
-        .order('created_at', { ascending: false })
+    const { data, error } = await supabase
+      .from('cases')
+      .select('*')
+      .or(`disease_type.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%, product_name.ilike.%${searchTerm}%`)
+      .order('created_at', { ascending: false })
 
-        if (data) setRawCases(data)
-        setAnalyzing(false)
-        setHasSearched(true)
-    }, 1500)
+    if (data) {
+      setRawCases(data)
+    }
+    setLoading(false)
   }
 
-  // 📸 图片上传/拍照逻辑 (V5.0 功能)
+  // 📷 2. 新增：处理拍照/上传图片逻辑
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setQuery(`已上传: ${file.name}`)
-      setAnalyzing(true)
-      
-      setTimeout(async () => {
-         // 强制演示甲状腺结果
-         setQuery('AI识别结果：甲状腺结节 2级')
-         
-         const { data } = await supabase
-          .from('cases')
-          .select('*')
-          .ilike('disease_type', '%甲状腺%') 
-          .order('created_at', { ascending: false })
-          
-         if (data) setRawCases(data)
-         setAnalyzing(false)
-         setHasSearched(true)
-      }, 2000)
+        setLoading(true)
+        setQuery(`正在识别: ${file.name}...`) // 界面反馈
+        
+        // 模拟 OCR 识别过程 (2秒后出结果)
+        setTimeout(() => {
+            const mockResult = '甲状腺结节' // 这里模拟识别到了甲状腺
+            setQuery(`AI识别结果：${mockResult}`)
+            handleSearch(mockResult) // 自动触发搜索
+        }, 1500)
     }
   }
 
-  // 🔄 数据聚合逻辑 (这是您喜欢的 V3.0 版本的核心逻辑，已恢复)
+  // 🔄 核心数据聚合逻辑
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
-    const map: Record<string, any> = {}
-    
+
+    const productMap: Record<string, any> = {}
+
     rawCases.forEach(item => {
       const pName = item.product_name || '未知产品'
-      if (!map[pName]) {
-        // 恢复中文判断逻辑
-        const baseScore = pName.includes('惠民') ? 85 : (pName.includes('医疗') ? 92 : 95)
-        const randomFluctuation = Math.floor(Math.random() * 5)
-        
-        map[pName] = {
+      if (!productMap[pName]) {
+        productMap[pName] = {
           name: pName,
-          company: item.company || '严选保司',
+          company: item.company || '通用保司',
           cases: [],
-          matchScore: baseScore + randomFluctuation,
           passCount: 0,
           totalCount: 0,
-          // 恢复中文关键词权重
           leverageScore: pName.includes('惠民') ? 10000 : (pName.includes('医疗') ? 8000 : 100),
           companyScore: (item.company?.includes('平安') || item.company?.includes('人保')) ? 9.8 : 8.5,
           coverageScore: Math.floor(Math.random() * 2000) + 500
         }
       }
-      map[pName].cases.push(item)
-      map[pName].totalCount += 1
-      if (item.verdict === 'pass') map[pName].passCount += 1
+      productMap[pName].cases.push(item)
+      productMap[pName].totalCount += 1
+      if (item.verdict === 'pass') productMap[pName].passCount += 1
     })
-    
-    let productList = Object.values(map)
 
-    // 恢复 V3.0 的排序逻辑
+    let productList = Object.values(productMap)
+
     productList.sort((a: any, b: any) => {
       if (activeSort === 'leverage') return b.leverageScore - a.leverageScore
       if (activeSort === 'company') return b.companyScore - a.companyScore
       if (activeSort === 'coverage') return b.coverageScore - a.coverageScore
-      return b.matchScore - a.matchScore // 默认按 AI 匹配度排序
+      return (b.passCount / b.totalCount) - (a.passCount / a.totalCount)
     })
 
-    return productList
+    return productList 
   }, [rawCases, activeSort])
 
   const resetHome = () => {
     setQuery('')
     setHasSearched(false)
     setRawCases([])
-    setAnalyzing(false)
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] font-sans text-slate-900 pb-32">
+    <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-20">
       
-      {/* 隐藏的文件输入框 */}
+      {/* 📷 3. 新增：隐藏的文件上传控件 */}
       <input 
         type="file" 
         accept="image/*" 
-        capture="environment" 
+        capture="environment" // 优先调起手机摄像头
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileUpload}
       />
 
-      {/* 顶部跑马灯 */}
-      <div className="bg-slate-900 text-white text-xs py-2 px-4 text-center overflow-hidden relative">
-         <div className="animate-fade-in-up key={tickerIndex}">
-            {LIVE_TICKER[tickerIndex]}
-         </div>
-      </div>
-
-      {/* 导航栏 */}
-      <nav className="bg-white/80 backdrop-blur-md py-4 px-6 sticky top-0 z-40 border-b border-gray-100 flex justify-between items-center">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={resetHome}>
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">H</div>
-          <span className="font-bold text-gray-800 text-lg">HealthGuardian</span>
+      <nav className="bg-white py-4 px-6 shadow-sm sticky top-0 z-50 flex justify-between items-center">
+        <div className="flex items-center gap-2 cursor-pointer hover:opacity-80" onClick={resetHome}>
+          <span className="text-2xl">🛡️</span>
+          <span className="font-bold text-gray-800 tracking-tight">HealthGuardian</span>
         </div>
-        <div className="flex items-center gap-2">
-            <img src={selectedExpert.image} className="w-8 h-8 rounded-full border border-gray-200" />
-            <span className="text-xs font-bold hidden md:inline">顾问在线</span>
+        <div className="flex items-center gap-3 cursor-pointer group">
+          <img src={selectedExpert.image} alt="Expert" className="w-9 h-9 rounded-full border border-gray-200 group-hover:border-blue-500" />
+          <div className="text-xs text-right hidden md:block">
+            <div className="font-bold text-gray-800">顾问: {selectedExpert.name}</div>
+            <div className="text-gray-400 group-hover:text-blue-600">切换专家 &rarr;</div>
+          </div>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 pt-8">
+      <main className="max-w-4xl mx-auto px-4 pt-12">
         
-        {/* =========================================
-            状态 A: 首页 (AI 输入 + V3.0 榜单)
-           ========================================= */}
-        {!hasSearched && !analyzing ? (
-          <div className="text-center mt-10 animate-fade-in-up">
-            <div className="inline-block bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold mb-6 border border-blue-100">
-               ✨ AI 数字孪生核保系统 V5.5
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight">
-              读懂你的<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">体检报告</span>
+        {!hasSearched ? (
+          <div className="text-center animate-fade-in-up">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
+              身体有异常，<br className="md:hidden" />还能买保险吗？
             </h1>
-            <p className="text-gray-500 mb-12 max-w-md mx-auto leading-relaxed">
-              支持 <span className="text-blue-600 font-bold">拍照上传</span> 或输入病史，AI 自动解析 200+ 项指标，生成您的专属 <span className="font-bold text-gray-900">保险准入诊断书</span>。
+            <p className="text-gray-500 mb-10 max-w-xl mx-auto">
+              全网核保大数据库 · <span className="text-blue-600 font-bold">AI 智能匹配</span> · 拒保复活攻略
             </p>
             
-            {/* 拟物化输入框 + 拍照按钮 */}
-            <div className="bg-white p-2 rounded-3xl shadow-2xl shadow-blue-100/50 border border-gray-100 max-w-xl mx-auto mb-12 relative overflow-hidden group">
-               <div className="flex items-center gap-2 px-2">
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-12 h-12 flex items-center justify-center bg-gray-50 rounded-2xl text-2xl hover:bg-gray-100 transition-colors active:scale-95"
-                  >
-                    📷
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="粘贴体检结论 / 输入疾病名称..."
-                    className="flex-1 h-14 bg-transparent outline-none text-lg placeholder:text-gray-400 min-w-0"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                  <button 
-                    onClick={() => handleSearch()}
-                    className="bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold hover:scale-105 transition-transform shadow-lg whitespace-nowrap"
-                  >
-                    开始诊断
-                  </button>
-               </div>
+            {/* 📷 4. 修改：搜索框增加了相机按钮 */}
+            <div className="max-w-2xl mx-auto mb-10 relative">
+              
+              {/* 左侧相机按钮 */}
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-2xl bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
+                title="拍照识别体检单"
+              >
+                📷
+              </button>
+
+              <input
+                type="text"
+                placeholder="输入疾病名，或点击相机拍照..."
+                className="w-full h-14 pl-14 pr-32 rounded-full border-2 border-indigo-50 shadow-lg shadow-indigo-50/50 focus:border-blue-500 focus:outline-none transition-all text-lg"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button 
+                onClick={() => handleSearch()}
+                className="absolute right-2 top-2 h-10 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all"
+              >
+                {loading ? '分析中...' : '生成攻略'}
+              </button>
             </div>
 
-            {/* 快速分类 */}
-            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mb-16">
-               {CATEGORIES.map(cat => (
-                  <button key={cat.id} onClick={() => handleSearch(cat.keywords[0])} className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition-all">
-                     <span className="text-2xl mb-2">{cat.icon}</span>
-                     <span className="text-xs font-bold text-gray-700">{cat.name}</span>
-                  </button>
-               ))}
+            <div className="flex flex-wrap justify-center gap-3 mb-16">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleSearch(cat.keywords[0])}
+                  className="bg-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm hover:shadow-md hover:text-blue-600 transition-all border border-gray-100 flex items-center gap-2"
+                >
+                  <span>{cat.icon}</span> {cat.name}
+                </button>
+              ))}
             </div>
 
-             {/* 首页榜单 (V3.0 样式) */}
             <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden text-left">
                <div className="flex border-b border-gray-50">
                   <button 
                     onClick={() => setActiveHomeTab('leverage')}
                     className={`flex-1 py-4 text-center font-bold text-sm ${activeHomeTab === 'leverage' ? 'text-blue-600 bg-blue-50/50 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
                   >
-                    💰 投保逆袭榜
+                    💰 投保逆袭榜 (高杠杆)
                   </button>
                   <button 
                      onClick={() => setActiveHomeTab('hot')}
                      className={`flex-1 py-4 text-center font-bold text-sm ${activeHomeTab === 'hot' ? 'text-orange-500 bg-orange-50/50 border-b-2 border-orange-500' : 'text-gray-500 hover:bg-gray-50'}`}
                   >
-                    🔥 疾病焦虑榜
+                    🔥 疾病焦虑榜 (热搜)
                   </button>
                </div>
 
@@ -297,52 +249,36 @@ export default function Home() {
                </div>
             </div>
           </div>
-        ) : analyzing ? (
-          /* =========================================
-             状态 B: 模拟分析中 (V5.0 动画)
-             ========================================= */
-          <div className="flex flex-col items-center justify-center pt-20">
-             <div className="relative w-24 h-24 mb-8">
-                <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center text-3xl">🧬</div>
-             </div>
-             <h2 className="text-2xl font-bold text-gray-900 mb-2">AI 正在扫描报告...</h2>
-             <p className="text-gray-400 text-sm">正在提取: {query.includes('上传') ? 'OCR 图像文字' : query}</p>
-             <div className="mt-8 w-64 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-blue-600 h-full w-2/3 animate-pulse"></div>
-             </div>
-          </div>
         ) : (
-          /* =========================================
-             状态 C: 结果页 (黑金诊断卡 + V3.0 列表)
-             ========================================= */
-          <div className="animate-fade-in-up pb-24">
+          
+          <div className="animate-fade-in-up space-y-6">
             
-            {/* 1. AI 诊断卡片 (深色主题 - 您的最爱) */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 md:p-8 text-white shadow-2xl shadow-slate-900/20 mb-8 relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none"></div>
-               <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div>
-                     <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-blue-600/30 border border-blue-400/30 text-blue-200 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">AI Report</span>
-                     </div>
-                     <h2 className="text-2xl md:text-3xl font-bold mb-2 break-all">{query.includes('AI') ? query : `关于“${query}”的核保诊断`}</h2>
-                     <p className="text-slate-300 text-sm max-w-md">
-                        AI 智能扫描发现，该异常在 <span className="text-white font-bold border-b border-blue-400">医疗险</span> 中存在 85% 的标体承保概率。
-                     </p>
-                  </div>
-                  <div className="flex gap-4">
-                     <div className="text-center">
-                        <div className="text-3xl font-black text-green-400">92<span className="text-sm text-green-400/60">%</span></div>
-                        <div className="text-[10px] text-slate-400 uppercase font-bold">通过率</div>
-                     </div>
-                  </div>
-               </div>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center">
+                <div className="flex-1">
+                   <div className="flex items-center gap-2 mb-4">
+                      <h2 className="text-2xl font-bold text-gray-900">📊 {query} · AI 核保策略</h2>
+                      <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-bold">中等风险</span>
+                   </div>
+                   <div className="bg-slate-50 rounded-xl p-4 border border-gray-100 flex gap-4 items-center">
+                      <div className="text-center px-4 border-r border-gray-200">
+                         <div className="text-xs text-gray-400">预估杠杆</div>
+                         <div className="text-2xl font-black text-blue-600">1:200</div>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1">
+                         <p>✅ <span className="font-bold">首选策略：</span>除外承保重疾险 + 0免赔医疗险</p>
+                         <p>🛡️ <span className="font-bold">兜底策略：</span>惠民保 (防并发症)</p>
+                      </div>
+                   </div>
+                </div>
+                <div className="text-center min-w-[120px]">
+                   <img src={selectedExpert.image} className="w-14 h-14 rounded-full mx-auto mb-2 border-2 border-white shadow" />
+                   <button className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition-all">
+                      咨询 {selectedExpert.name}
+                   </button>
+                </div>
             </div>
 
-            {/* 2. 排序选项 */}
-            <div className="flex flex-wrap gap-3 py-2 mb-4">
+            <div className="flex flex-wrap gap-3 py-2">
                {SORT_OPTIONS.map(opt => (
                  <button
                    key={opt.value}
@@ -358,29 +294,19 @@ export default function Home() {
                ))}
             </div>
 
-            {/* 3. 聚合产品列表 (V3.0 核心逻辑：可展开 + 案例) */}
-            <div className="flex items-center justify-between mb-4 px-2">
-               <h3 className="font-bold text-gray-900">为您匹配到 {aggregatedProducts.length} 款产品</h3>
-            </div>
-
             <div className="space-y-4">
                {aggregatedProducts.length > 0 ? (
                  <>
                    {aggregatedProducts.map((product: any, idx) => (
                      <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${expandedProductId === product.name ? 'border-blue-500 shadow-lg ring-2 ring-blue-50' : 'border-gray-100 shadow-sm hover:border-blue-200'}`}>
                         
-                        {/* 卡片头部 (点击展开) */}
                         <div 
-                          className="p-5 cursor-pointer flex flex-col md:flex-row gap-4 md:items-center relative"
+                          className="p-5 cursor-pointer flex flex-col md:flex-row gap-4 md:items-center"
                           onClick={() => setExpandedProductId(expandedProductId === product.name ? null : product.name)}
                         >
-                            {/* 第一名金牌 */}
-                           {idx === 0 && activeSort === 'recommend' && <div className="absolute top-0 right-0 bg-gradient-to-bl from-yellow-400 to-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm z-10">AI 首选</div>}
-
                            <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                 {/* 排名数字 */}
-                                 <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${idx===0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                 <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${idx===0 ? 'bg-red-500 text-white' : idx===1 ? 'bg-orange-500 text-white' : idx===2 ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
                                     {idx + 1}
                                  </span>
                                  <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
@@ -388,8 +314,7 @@ export default function Home() {
                               </div>
                               <div className="text-xs text-gray-400 flex items-center gap-3">
                                  <span>🏢 {product.company}</span>
-                                 <span>📄 收录案例: {product.totalCount} 条</span>
-                                 <span className={`font-bold ${product.matchScore > 90 ? 'text-green-600' : 'text-yellow-600'}`}>匹配度: {product.matchScore}%</span>
+                                 <span>📝 收录案例: {product.totalCount} 条</span>
                               </div>
                            </div>
                            
@@ -406,7 +331,6 @@ export default function Home() {
                            </div>
                         </div>
 
-                        {/* 展开的详情页 (V3.0 逻辑) */}
                         {expandedProductId === product.name && (
                            <div className="bg-slate-50 border-t border-gray-100 p-5 animate-fade-in-down">
                               <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -430,7 +354,7 @@ export default function Home() {
                               </div>
                               <div className="mt-4 text-center">
                                  <button className="text-sm font-bold text-blue-600 bg-white border border-blue-200 px-6 py-2 rounded-full shadow-sm hover:bg-blue-50">
-                                    👉 申请 {selectedExpert.name} 协助投保
+                                    👉 既然能买，找 {selectedExpert.name} 协助投保
                                  </button>
                               </div>
                            </div>
@@ -453,40 +377,25 @@ export default function Home() {
                  </div>
                )}
             </div>
-            
+
           </div>
         )}
       </main>
-
-      {/* 底部悬浮救援条 (Sticky Bar) */}
-      <div className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[600px] z-50">
-         <div className="bg-white/90 backdrop-blur-lg border border-white/20 shadow-2xl shadow-blue-900/20 rounded-2xl p-2 pl-5 flex items-center justify-between ring-1 ring-gray-900/5">
-            <div className="flex items-center gap-3">
-               <div className="relative">
-                  <img src={selectedExpert.image} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
-                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
-               </div>
-               <div className="text-xs">
-                  <div className="font-bold text-gray-900">看不懂方案？</div>
-                  <div className="text-gray-500">让 {selectedExpert.name} 帮您把关</div>
-               </div>
-            </div>
-            <button className="bg-blue-600 text-white text-sm font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 hover:scale-105 transition-transform">
-               免费咨询
-            </button>
-         </div>
-      </div>
-
     </div>
   )
 }
 
-// 杠杆标签 (保留中文逻辑)
 const LeverageTag = ({ productName }: { productName: string }) => {
   if (!productName) return null;
-  let bg = '#F1F5F9', color = '#475569', text = '基础杠杆';
-  if (productName.includes('众民保') || productName.includes('惠民')) { bg = '#F3E5F5'; color = '#7B1FA2'; text = '🔥 10000倍'; }
-  else if (productName.includes('医疗') || productName.includes('e生保') || productName.includes('好医保')) { bg = '#ECFDF5'; color = '#047857'; text = '🟢 8000倍'; }
-  else if (productName.includes('重疾') || productName.includes('达尔文') || productName.includes('超级玛丽')) { bg = '#FFFBEB'; color = '#B45309'; text = '🟡 100倍'; }
-  return <span style={{backgroundColor: bg, color: color}} className="text-[10px] px-1.5 py-0.5 rounded font-bold">{text}</span>;
+  let style: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, backgroundColor: '#E3F2FD', color: '#1565C0', marginLeft: '8px' };
+  let text = '基础杠杆';
+
+  if (productName.includes('众民保') || productName.includes('惠民')) {
+    style.backgroundColor = '#F3E5F5'; style.color = '#7B1FA2'; text = '🔥 10000倍杠杆';
+  } else if (productName.includes('医疗') || productName.includes('e生保') || productName.includes('好医保')) {
+    style.backgroundColor = '#E8F5E9'; style.color = '#2E7D32'; text = '🟢 8000倍杠杆';
+  } else if (productName.includes('重疾') || productName.includes('达尔文')) {
+    style.backgroundColor = '#FFF8E1'; style.color = '#F57F17'; text = '🟡 100倍杠杆';
+  }
+  return <span style={style}>{text}</span>;
 };
