@@ -10,7 +10,7 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 静态数据配置 (全中文)
+// 1. 静态数据配置
 // ==========================================
 
 const LIVE_TICKER = [
@@ -23,14 +23,14 @@ const LIVE_TICKER = [
 const CATEGORIES = [
   { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
   { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝', '胆囊息肉'] },
-  { id: 'metabolic', name: '三高/慢病', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
+  { id: 'metabolic', name: '三高/痛风', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
   { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症', '睡眠障碍'] },
   { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔', '自闭症'] },
 ]
 
 const EXPERTS = [
   { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male' },
-  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
+  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -45,7 +45,7 @@ const SORT_OPTIONS = [
   { value: 'recommend', label: '🔥 综合推荐', icon: '👍' },
   { value: 'leverage', label: '💰 高性价比', icon: '📈' },
   { value: 'coverage', label: '🛡️ 覆盖率广', icon: '☂️' },
-  { value: 'company', label: '🏢 大公司', icon: '🏢' }, // ✅ 修复：将 'qy' 改为真实的楼房图标
+  { value: 'company', label: '🏢 大公司', icon: '🏢' }, // ✅ 修复：这里改成图标，不再是 qy
 ]
 
 export default function Home() {
@@ -94,7 +94,7 @@ export default function Home() {
     const file = e.target.files?.[0]
     if (file) {
         setLoading(true)
-        setQuery(`正在扫描: ${file.name}...`)
+        setQuery(`正在识别: ${file.name}...`)
         
         setTimeout(() => {
             const mockResult = '甲状腺结节'
@@ -172,7 +172,7 @@ export default function Home() {
         <div className="flex items-center gap-3 cursor-pointer group">
           <img src={selectedExpert.image} alt="Expert" className="w-9 h-9 rounded-full border border-gray-200 group-hover:border-blue-500" />
           <div className="text-xs text-right hidden md:block">
-            <div className="font-bold text-gray-800">专属顾问: {selectedExpert.name}</div>
+            <div className="font-bold text-gray-800">顾问: {selectedExpert.name}</div>
             <div className="text-gray-400 group-hover:text-blue-600">切换专家 &rarr;</div>
           </div>
         </div>
@@ -311,10 +311,10 @@ export default function Home() {
                {aggregatedProducts.length > 0 ? (
                  <>
                    {aggregatedProducts.map((product: any, idx) => {
-                     // 💰 2. 修复：智能计算通过率，避免显示 0%
+                     // 💡 重点修改：智能计算通过率，不显示 0%
                      const rate = Math.round((product.passCount / product.totalCount) * 100);
-                     const displayRate = rate > 0 ? `${rate}%` : '需人工';
-                     const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600';
+                     const displayRate = rate > 0 ? `${rate}%` : '专家核保'; // 为 0 时显示这个
+                     const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600'; // 没数据时用蓝色，给希望
 
                      return (
                        <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${expandedProductId === product.name ? 'border-blue-500 shadow-lg ring-2 ring-blue-50' : 'border-gray-100 shadow-sm hover:border-blue-200'}`}>
@@ -341,6 +341,7 @@ export default function Home() {
                                 <div className="text-right">
                                    <div className="text-xs text-gray-400">核保通过率</div>
                                    <div className={`text-lg font-black ${rateColor}`}>
+                                      {/* 这里会显示：92% 或 专家核保 */}
                                       {displayRate}
                                    </div>
                                 </div>
@@ -373,7 +374,7 @@ export default function Home() {
                                 </div>
                                 <div className="mt-4 text-center">
                                    <button className="text-sm font-bold text-blue-600 bg-white border border-blue-200 px-6 py-2 rounded-full shadow-sm hover:bg-blue-50">
-                                      👉 申请 {selectedExpert.name} 协助投保
+                                      👉 既然能买，找 {selectedExpert.name} 协助投保
                                    </button>
                                 </div>
                              </div>
