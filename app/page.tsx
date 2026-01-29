@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+// ✅ 引入专业图标库
+import { ThumbsUp, TrendingUp, ShieldCheck, Building2, Camera, ChevronDown } from 'lucide-react'
 
 // 初始化 Supabase
 const supabase = createClient(
@@ -23,14 +25,14 @@ const LIVE_TICKER = [
 const CATEGORIES = [
   { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
   { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝', '胆囊息肉'] },
-  { id: 'metabolic', name: '三高/痛风', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
+  { id: 'metabolic', name: '三高/慢病', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
   { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症', '睡眠障碍'] },
   { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔', '自闭症'] },
 ]
 
 const EXPERTS = [
   { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male' },
-  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
+  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -40,12 +42,13 @@ const HOME_LEADERBOARD = [
   { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
 ]
 
+// ✅ 修复：使用 React 组件作为图标，而不是 Emoji 字符串
 type SortType = 'recommend' | 'leverage' | 'coverage' | 'company'
 const SORT_OPTIONS = [
-  { value: 'recommend', label: '🔥 综合推荐', icon: '👍' },
-  { value: 'leverage', label: '💰 高性价比', icon: '📈' },
-  { value: 'coverage', label: '🛡️ 覆盖率广', icon: '☂️' },
-  { value: 'company', label: '🏢 大公司', icon: '🏢' }, // ✅ 修复：这里改成图标，不再是 qy
+  { value: 'recommend', label: '综合推荐', icon: ThumbsUp },
+  { value: 'leverage', label: '高性价比', icon: TrendingUp },
+  { value: 'coverage', label: '覆盖率广', icon: ShieldCheck },
+  { value: 'company', label: '大公司', icon: Building2 }, 
 ]
 
 export default function Home() {
@@ -172,7 +175,7 @@ export default function Home() {
         <div className="flex items-center gap-3 cursor-pointer group">
           <img src={selectedExpert.image} alt="Expert" className="w-9 h-9 rounded-full border border-gray-200 group-hover:border-blue-500" />
           <div className="text-xs text-right hidden md:block">
-            <div className="font-bold text-gray-800">顾问: {selectedExpert.name}</div>
+            <div className="font-bold text-gray-800">专属顾问: {selectedExpert.name}</div>
             <div className="text-gray-400 group-hover:text-blue-600">切换专家 &rarr;</div>
           </div>
         </div>
@@ -192,10 +195,11 @@ export default function Home() {
             <div className="max-w-2xl mx-auto mb-10 relative">
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-2xl bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
+                className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
                 title="拍照识别体检单"
               >
-                📷
+                {/* 替换为 Lucide 相机图标 */}
+                <Camera className="w-5 h-5" />
               </button>
 
               <input
@@ -291,30 +295,36 @@ export default function Home() {
                 </div>
             </div>
 
+            {/* ✅ 修复：新的 Tag 样式，使用 Lucide 图标，解决大公司图标重复问题 */}
             <div className="flex flex-wrap gap-3 py-2">
-               {SORT_OPTIONS.map(opt => (
-                 <button
-                   key={opt.value}
-                   onClick={() => setActiveSort(opt.value as SortType)}
-                   className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${
-                     activeSort === opt.value 
-                       ? 'bg-slate-900 text-white shadow-lg' 
-                       : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                   }`}
-                 >
-                   <span>{opt.icon}</span> {opt.label}
-                 </button>
-               ))}
+               {SORT_OPTIONS.map(opt => {
+                 const Icon = opt.icon;
+                 return (
+                   <button
+                     key={opt.value}
+                     onClick={() => setActiveSort(opt.value as SortType)}
+                     className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${
+                       activeSort === opt.value 
+                         ? 'bg-slate-900 text-white shadow-md transform scale-105' 
+                         : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                     }`}
+                   >
+                     {/* 渲染图标组件 */}
+                     <Icon className="w-4 h-4" />
+                     {opt.label}
+                   </button>
+                 )
+               })}
             </div>
 
             <div className="space-y-4">
                {aggregatedProducts.length > 0 ? (
                  <>
                    {aggregatedProducts.map((product: any, idx) => {
-                     // 💡 重点修改：智能计算通过率，不显示 0%
                      const rate = Math.round((product.passCount / product.totalCount) * 100);
-                     const displayRate = rate > 0 ? `${rate}%` : '专家核保'; // 为 0 时显示这个
-                     const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600'; // 没数据时用蓝色，给希望
+                     // ✅ 修复：不显示 0%，显示更有希望的文案
+                     const displayRate = rate > 0 ? `${rate}%` : '专家核保';
+                     const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600';
 
                      return (
                        <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${expandedProductId === product.name ? 'border-blue-500 shadow-lg ring-2 ring-blue-50' : 'border-gray-100 shadow-sm hover:border-blue-200'}`}>
@@ -341,12 +351,11 @@ export default function Home() {
                                 <div className="text-right">
                                    <div className="text-xs text-gray-400">核保通过率</div>
                                    <div className={`text-lg font-black ${rateColor}`}>
-                                      {/* 这里会显示：92% 或 专家核保 */}
                                       {displayRate}
                                    </div>
                                 </div>
                                 <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${expandedProductId === product.name ? 'rotate-180 bg-gray-100' : 'bg-gray-50'}`}>
-                                   ⌄
+                                   <ChevronDown className="w-5 h-5 text-gray-400" />
                                 </button>
                              </div>
                           </div>
@@ -374,7 +383,7 @@ export default function Home() {
                                 </div>
                                 <div className="mt-4 text-center">
                                    <button className="text-sm font-bold text-blue-600 bg-white border border-blue-200 px-6 py-2 rounded-full shadow-sm hover:bg-blue-50">
-                                      👉 既然能买，找 {selectedExpert.name} 协助投保
+                                      👉 申请 {selectedExpert.name} 协助投保
                                    </button>
                                 </div>
                              </div>
