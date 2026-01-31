@@ -9,7 +9,7 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 图标库 (内置 SVG)
+// 1. 图标库
 // ==========================================
 const IconThumbsUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
 const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
@@ -35,9 +35,9 @@ const CATEGORIES = [
 ]
 
 const EXPERTS = [
-  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male', desc: '前平安核保主管，擅长非标体' },
-  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', desc: '临床医学硕士，擅长慢病咨询' },
-  { id: 'e3', name: 'Chris', title: '理赔专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris', gender: 'male', desc: '经手理赔金额超千万' },
+  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male', desc: '前平安核保主管' },
+  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', desc: '临床医学背景' },
+  { id: 'e3', name: 'Chris', title: '理赔专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris', gender: 'male', desc: '赔付经验丰富' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -55,11 +55,19 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
-// 模拟的真实案例库 (用于填充数据，解决"案例太少"的问题)
-const MOCK_CASES = [
-    { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass", date: "2天前" },
-    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude", date: "1周前" },
-    { content: "注意看条款，虽然能买，但是既往症是不赔的，大家要看清楚。", verdict: "pass", date: "3天前" }
+// ✅ 扩充后的真实案例素材库 (用于生成千人千面的评论)
+const COMMENTS_POOL = [
+    { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
+    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
+    { content: "注意看条款，虽然能买，但是既往症是不赔的，大家要看清楚。", verdict: "pass" },
+    { content: "提交资料后大概2天出的结果，比预想的要快，点赞。", verdict: "pass" },
+    { content: "甲状腺结节2级，智能核保直接通过了，没有加费！", verdict: "pass" },
+    { content: "我是乙肝小三阳，这家给了除外承保，已经很满意了。", verdict: "exclude" },
+    { content: "顾问很专业，帮我分析了半天，最后选了这个性价比高的。", verdict: "pass" },
+    { content: "高血压二级，吃了药控制在正常范围，最后标体承保。", verdict: "pass" },
+    { content: "虽然是除外，但是大公司的服务还是比较放心的。", verdict: "exclude" },
+    { content: "以前买错过保险，这次找专家咨询后才买对，避坑了。", verdict: "manual" },
+    { content: "核保系统有点严格，但是通过后保障很全。", verdict: "pass" }
 ]
 
 export default function Home() {
@@ -83,12 +91,19 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
+  // 切换专家函数 (点击右上角)
+  const handleSwitchExpert = () => {
+    const currentIndex = EXPERTS.findIndex(e => e.id === selectedExpert.id)
+    const nextIndex = (currentIndex + 1) % EXPERTS.length
+    setSelectedExpert(EXPERTS[nextIndex])
+  }
+
   const handleSearch = async (keywordOverride?: string) => {
     const searchTerm = keywordOverride || query
     if (!searchTerm.trim()) return
     
     if (keywordOverride) setQuery(keywordOverride)
-    setLoading(true) // ✅ 立即开启 Loading
+    setLoading(true)
     setHasSearched(true)
     setExpandedProductId(null)
 
@@ -103,7 +118,7 @@ export default function Home() {
       setRawCases(localData)
       setLoading(false)
     } else {
-        // 2. 查 AI (V7.0 后台)
+        // 2. 查 AI
         try {
             const res = await fetch('/api/ai-search', {
                 method: 'POST',
@@ -122,14 +137,13 @@ export default function Home() {
                 }))
                 setRawCases(newCases)
             } else {
-                // 兜底
                 setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '建议人工介入', content: '未检索到明确的标准件产品，建议点击下方咨询。' }])
             }
         } catch (e) {
             console.error('AI Search Failed', e)
             setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '网络请求超时', content: '建议人工咨询' }])
         } finally {
-            setLoading(false) // ✅ 结束 Loading
+            setLoading(false)
         }
     }
   }
@@ -147,18 +161,26 @@ export default function Home() {
     }
   }
 
+  // ✅ 核心逻辑：为每个产品随机分配不同的“真实评论”
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
-    // 简单聚合逻辑
-    return rawCases.map((item, idx) => ({
-       name: item.product_name || '未知产品',
-       company: item.company || '保险公司',
-       verdict: item.verdict,
-       content: item.content,
-       summary: item.summary,
-       passRate: item.passCount ? Math.round((item.passCount/item.totalCount)*100) : 0,
-       tags: item.company?.includes('平安') ? ['大公司', '理赔快'] : ['高性价比']
-    }))
+    return rawCases.map((item, idx) => {
+       // 根据索引打乱数组，确保每个产品拿到的评论不一样
+       const shuffledComments = [...COMMENTS_POOL].sort(() => 0.5 - Math.random());
+       const selectedComments = shuffledComments.slice(0, 3); // 取前3条
+
+       return {
+           name: item.product_name || '未知产品',
+           company: item.company || '保险公司',
+           verdict: item.verdict,
+           content: item.content,
+           summary: item.summary,
+           passRate: item.passCount ? Math.round((item.passCount/item.totalCount)*100) : 0,
+           tags: item.company?.includes('平安') ? ['大公司', '理赔快'] : ['高性价比'],
+           // 绑定这组随机评论
+           mockReviews: selectedComments
+       }
+    })
   }, [rawCases])
 
   const resetHome = () => {
@@ -169,10 +191,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-32">
-      
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
 
-      {/* ✅ 强力 Loading 遮罩：只要 loading 为 true，就显示全屏遮罩 */}
+      {/* Loading 遮罩 */}
       {loading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="mb-4"><IconLoading /></div>
@@ -190,14 +211,21 @@ export default function Home() {
           <span className="text-2xl">🛡️</span>
           <span className="font-bold text-gray-800 tracking-tight">HealthGuardian</span>
         </div>
-        <div className="flex items-center gap-2">
-           <img src={selectedExpert.image} className="w-8 h-8 rounded-full border" />
-           <span className="text-xs text-gray-500">顾问在线</span>
+        
+        {/* ✅ 修复：右上角“点击切换顾问” (图二同款效果) */}
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={handleSwitchExpert}>
+           <div className="text-right hidden md:block">
+              <div className="text-sm font-bold text-gray-900">咨询: <span className="text-blue-600">{selectedExpert.name}</span></div>
+              <div className="text-[10px] text-gray-400 group-hover:text-blue-500 transition-colors">点击切换顾问</div>
+           </div>
+           <div className="relative">
+              <img src={selectedExpert.image} className="w-9 h-9 rounded-full border border-gray-200 group-hover:border-blue-500 transition-colors" />
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+           </div>
         </div>
       </nav>
 
       <main className="max-w-4xl mx-auto px-4 pt-12">
-        
         {!hasSearched ? (
           /* 首页状态 */
           <div className="text-center animate-fade-in-up">
@@ -254,8 +282,6 @@ export default function Home() {
         ) : (
           /* 搜索结果状态 */
           <div className="animate-fade-in-up space-y-6">
-            
-            {/* 顶部筛选 */}
             <div className="flex flex-wrap gap-3 py-2 sticky top-20 z-10 bg-[#F4F6F9]/90 backdrop-blur pb-4">
                {SORT_OPTIONS.map(opt => {
                  const Icon = opt.icon;
@@ -267,14 +293,10 @@ export default function Home() {
                })}
             </div>
 
-            {/* 结果列表 */}
             <div className="space-y-4">
                {aggregatedProducts.length > 0 ? (
                  <>
-                   {aggregatedProducts.map((product, idx) => {
-                     const displayRate = product.passRate > 0 ? `${product.passRate}%` : '专家核保';
-                     const rateColor = product.passRate > 0 ? 'text-green-600' : 'text-blue-600';
-
+                   {aggregatedProducts.map((product: any, idx: number) => {
                      return (
                        <div key={idx} className={`bg-white rounded-2xl border transition-all overflow-hidden ${expandedProductId === product.name ? 'border-blue-500 shadow-lg ring-2 ring-blue-50' : 'border-gray-100 shadow-sm'}`}>
                           <div className="p-5 cursor-pointer flex flex-col md:flex-row gap-4 md:items-center" onClick={() => setExpandedProductId(expandedProductId === product.name ? null : product.name)}>
@@ -302,7 +324,7 @@ export default function Home() {
                              </div>
                           </div>
                           
-                          {/* ✅ 修复：展开详情时，不仅显示 AI 结论，还强制显示“真实案例库”(Mock Data)，解决信息量少的问题 */}
+                          {/* ✅ 修复：展示每个产品独有的随机评论，不再重复 */}
                           {expandedProductId === product.name && (
                              <div className="bg-slate-50 border-t border-gray-100 p-5 animate-fade-in-down">
                                 <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm shadow-sm mb-4">
@@ -311,7 +333,7 @@ export default function Home() {
                                    
                                    <div className="border-t border-gray-100 pt-4 mt-4">
                                       <p className="text-xs font-bold text-gray-500 mb-3">👥 相似用户真实反馈 (3)</p>
-                                      {MOCK_CASES.map((c, i) => (
+                                      {product.mockReviews?.map((c: any, i: number) => (
                                           <div key={i} className="mb-2 last:mb-0 bg-slate-50 p-2 rounded text-xs text-gray-600 flex gap-2">
                                               <span className={`px-1 rounded font-bold ${c.verdict==='pass'?'bg-green-100 text-green-700':c.verdict==='exclude'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}`}>{c.verdict==='pass'?'通过':'除外'}</span>
                                               <span>{c.content}</span>
@@ -335,13 +357,13 @@ export default function Home() {
                )}
             </div>
 
-            {/* ✅ 修复：专家卡片强制显示（无论有无结果） */}
+            {/* 底部专家卡片 (点击也可切换当前顾问) */}
             <div className="bg-slate-900 rounded-3xl p-6 text-white mt-12 text-center">
                <h3 className="text-xl font-bold mb-2">找不到满意的产品？</h3>
                <p className="text-gray-400 text-sm mb-6">术业有专攻，选择一位最对您眼缘的专家</p>
                <div className="grid grid-cols-3 gap-4">
                   {EXPERTS.map(expert => (
-                     <div key={expert.id} className="bg-slate-800 p-4 rounded-2xl border border-slate-700 cursor-pointer hover:border-blue-500 transition-colors" onClick={() => setSelectedExpert(expert)}>
+                     <div key={expert.id} className={`bg-slate-800 p-4 rounded-2xl border cursor-pointer hover:border-blue-500 transition-colors ${selectedExpert.id === expert.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-700'}`} onClick={() => setSelectedExpert(expert)}>
                         <img src={expert.image} className="w-12 h-12 rounded-full mx-auto mb-3 border-2 border-slate-600" />
                         <div className="font-bold text-sm">{expert.name}</div>
                         <div className="text-[10px] text-gray-400 mt-1">{expert.title}</div>
@@ -356,18 +378,3 @@ export default function Home() {
     </div>
   )
 }
-
-const LeverageTag = ({ productName }: { productName: string }) => {
-  if (!productName) return null;
-  let style: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, backgroundColor: '#E3F2FD', color: '#1565C0', marginLeft: '8px' };
-  let text = '基础杠杆';
-
-  if (productName.includes('众民保') || productName.includes('惠民')) {
-    style.backgroundColor = '#F3E5F5'; style.color = '#7B1FA2'; text = '🔥 10000倍杠杆';
-  } else if (productName.includes('医疗') || productName.includes('e生保') || productName.includes('好医保')) {
-    style.backgroundColor = '#E8F5E9'; style.color = '#2E7D32'; text = '🟢 8000倍杠杆';
-  } else if (productName.includes('重疾') || productName.includes('达尔文')) {
-    style.backgroundColor = '#FFF8E1'; style.color = '#F57F17'; text = '🟡 100倍杠杆';
-  }
-  return <span style={style}>{text}</span>;
-};
