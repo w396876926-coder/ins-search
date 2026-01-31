@@ -3,49 +3,21 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-// Initialize Supabase
+// 初始化 Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 // ==========================================
-// 1. Internal SVG Icons (No 'lucide-react' needed)
+// 1. 内置图标 (SVG)
 // ==========================================
-const IconThumbsUp = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
-  </svg>
-)
-const IconTrendingUp = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
-  </svg>
-)
-const IconShield = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>
-  </svg>
-)
-const IconBuilding = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/>
-  </svg>
-)
-const IconCamera = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>
-  </svg>
-)
-const IconChevronDown = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m6 9 6 6 6-6"/>
-  </svg>
-)
-
-// ==========================================
-// 2. Static Data (Chinese)
-// ==========================================
+const IconThumbsUp = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+const IconTrendingUp = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+const IconShield = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+const IconBuilding = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/></svg>
+const IconCamera = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+const IconChevronDown = () => <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -63,8 +35,8 @@ const CATEGORIES = [
 ]
 
 const EXPERTS = [
-  { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male' },
-  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female' },
+  { id: 'e1', name: 'Alex', title: '资深核保专家', image: '[https://api.dicebear.com/7.x/avataaars/svg?seed=Alex](https://api.dicebear.com/7.x/avataaars/svg?seed=Alex)', gender: 'male' },
+  { id: 'e2', name: 'Bella', title: '医学顾问', image: '[https://api.dicebear.com/7.x/avataaars/svg?seed=Bella](https://api.dicebear.com/7.x/avataaars/svg?seed=Bella)', gender: 'female' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -103,6 +75,7 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
+  // 🚀 核心：真·联网搜索逻辑
   const handleSearch = async (keywordOverride?: string) => {
     const searchTerm = keywordOverride || query
     if (!searchTerm.trim()) return
@@ -112,16 +85,50 @@ export default function Home() {
     setHasSearched(true)
     setExpandedProductId(null)
 
+    // 1. 先查 Supabase 本地库 (0.1秒极速)
     const { data, error } = await supabase
       .from('cases')
       .select('*')
       .or(`disease_type.ilike.%${searchTerm}%, content.ilike.%${searchTerm}%, product_name.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false })
 
-    if (data) {
+    if (data && data.length > 0) {
+      console.log('✅ 命中本地数据库')
       setRawCases(data)
+      setLoading(false)
+    } else {
+        // 2. 本地没有 -> 触发 AI 联网搜索 (约3-5秒)
+        console.log('🚀 触发 AI 联网搜索...')
+        try {
+            const res = await fetch('/api/ai-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ disease: searchTerm })
+            })
+            const result = await res.json()
+            
+            if (result.success && result.data && result.data.length > 0) {
+                // 构造前端展示数据
+                const newCases = result.data.map((p:any) => ({
+                    ...p,
+                    id: Math.random(), // 临时ID
+                    passCount: 50, // 模拟数据
+                    totalCount: 60,
+                    created_at: new Date().toISOString()
+                }))
+                setRawCases(newCases)
+            } else {
+                // 3. 兜底：如果 AI 也没搜到
+                setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '情况复杂，AI建议人工介入', content: '未检索到明确的标准件产品，建议点击下方咨询。' }])
+            }
+        } catch (e) {
+            console.error('AI Search Failed', e)
+            // 失败兜底
+            setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '网络请求超时，建议人工咨询', content: '请检查网络或直接联系顾问。' }])
+        } finally {
+            setLoading(false)
+        }
     }
-    setLoading(false)
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +241,7 @@ export default function Home() {
 
               <input
                 type="text"
-                placeholder="输入疾病名，或点击相机拍照..."
+                placeholder="输入疾病名（如：高血压），自动联网搜索..."
                 className="w-full h-14 pl-14 pr-32 rounded-full border-2 border-indigo-50 shadow-lg shadow-indigo-50/50 focus:border-blue-500 focus:outline-none transition-all text-lg"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -244,7 +251,7 @@ export default function Home() {
                 onClick={() => handleSearch()}
                 className="absolute right-2 top-2 h-10 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all"
               >
-                {loading ? '分析中...' : '生成攻略'}
+                {loading ? '全网搜...' : '生成攻略'}
               </button>
             </div>
 
@@ -350,8 +357,8 @@ export default function Home() {
                  <>
                    {aggregatedProducts.map((product: any, idx) => {
                      const rate = Math.round((product.passCount / product.totalCount) * 100);
-                     // ✅ 修复：0% -> 需人工 (蓝色)
-                     const displayRate = rate > 0 ? `${rate}%` : '需人工';
+                     // ✅ 修复：0% -> 专家核保 (蓝色)
+                     const displayRate = rate > 0 ? `${rate}%` : '专家核保';
                      const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600';
 
                      return (
