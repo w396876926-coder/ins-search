@@ -19,67 +19,69 @@ export async function POST(req: Request) {
 
   try {
     const { disease } = await req.json()
-    console.log(`🔍 正在搜索: ${disease}`)
+    console.log(`🔍 深度搜索: ${disease}`)
 
-    // 1. Tavily 搜索
+    // 1. Tavily 搜索 (扩大搜索量到 8 条，获取更多全网精华)
     const searchResponse = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         api_key: process.env.TAVILY_API_KEY,
-        query: `2024年 ${disease} 核保宽松保险产品 价格 承保概率 评测`, 
+        query: `2024年 ${disease} 保险核保 宽松产品 测评 价格 列表`, 
         search_depth: "basic",
         include_answer: false,
-        max_results: 4
+        max_results: 8 // ✅ 翻倍搜索量
       })
     })
     
     const searchData = await searchResponse.json()
-    const context = searchData.results?.map((r: any) => r.content).join('\n').slice(0, 3000) || ""
+    // 增加上下文长度，容纳更多信息
+    const context = searchData.results?.map((r: any) => r.content).join('\n').slice(0, 6000) || ""
 
-    // 2. Kimi AI 总结 (核心修改：要求 AI 估算具体的钱，而不是比例)
+    // 2. Kimi AI 总结 (要求生成更多产品，并提取数值用于排序)
     const completion = await client.chat.completions.create({
       model: "moonshot-v1-8k",
       messages: [
         {
           role: "system",
-          content: `你是一个站在用户立场的保险专家。请根据搜索结果，针对"${disease}"生成投保分析。
+          content: `你是一个精算师。请根据搜索结果，尽可能多地列出适合"${disease}"的产品（目标 6-8 款）。
           
-          重点：请根据疾病严重程度，预估市面上可行产品的"起步保费"和"最高保额"。
-          例如：甲状腺结节可买百万医疗险，保费低保额高；癌症术后只能买复发险，保费高保额低。
+          为了方便排序，请估算每个产品的：
+          - "price_val": 预估年保费（纯数字，如 500）
+          - "coverage_val": 最高保额（纯数字，单位万，如 600）
           
-          必须严格返回纯 JSON 格式：
+          返回纯 JSON：
           {
             "analysis": {
-                "pass_rate": "估算通过率(如 85%)",
-                "risk_level": "风险等级(低风险/中风险/高风险)",
-                "price_estimate": "预估保费(如: ¥300起/年)",
-                "coverage_estimate": "最高保额(如: 600万)",
-                "best_product": "推荐产品名",
-                "strategy_main": "主险策略(如: 百万医疗险-除外)",
-                "strategy_fix": "补充策略(如: 癌症特药险)",
-                "strategy_bottom": "兜底策略(如: 当地惠民保)"
+                "pass_rate": "估算通过率",
+                "risk_level": "风险等级",
+                "price_estimate": "起步保费文案",
+                "coverage_estimate": "最高保额文案",
+                "strategy_main": "主险策略",
+                "strategy_fix": "补丁策略",
+                "strategy_bottom": "兜底策略"
             },
             "products": [
               {
-                "product_name": "产品全称",
-                "company": "保司名",
+                "product_name": "产品名",
+                "company": "保司",
                 "verdict": "pass"(标体)/"exclude"(除外)/"manual"(人核),
-                "summary": "一句话推荐理由",
-                "content": "具体的核保结论与建议"
+                "summary": "核心卖点",
+                "content": "详细结论",
+                "price_val": 300, 
+                "coverage_val": 600
               }
             ]
           }`
         },
-        { role: "user", content: `搜索结果：${context}` }
+        { role: "user", content: `搜索资料库：${context}` }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.4,
+      temperature: 0.45, // 稍微提高创造性，让它多找点产品
     })
 
     const aiResult = JSON.parse(completion.choices[0].message.content || '{}')
     const products = aiResult.products || []
-    const analysis = aiResult.analysis || {}
     
     // 3. 异步回写
     if (products.length > 0) {
@@ -87,17 +89,18 @@ export async function POST(req: Request) {
           disease_type: disease,
           ...p,
           created_at: new Date().toISOString()
-        }))).then(() => console.log("✅ 异步存入成功"))
+        }))).then(() => console.log("✅ 数据入库成功"))
     }
 
-    return NextResponse.json({ success: true, data: products, analysis: analysis })
+    return NextResponse.json({ success: true, data: products, analysis: aiResult.analysis })
 
   } catch (error: any) {
     console.error('❌ Error:', error)
+    // 兜底数据
     return NextResponse.json({ 
         success: true, 
-        data: [{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', summary: '需人工介入', content: '情况较复杂，建议直接咨询专家。' }],
-        analysis: { pass_rate: '--%', risk_level: '未知', price_estimate: '咨询后报价', coverage_estimate: '具体分析', best_product: '人工咨询', strategy_main: '人工核保', strategy_fix: '多保司尝试', strategy_bottom: '惠民保' }
+        data: [{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', summary: 'AI连接超时', content: '请直接咨询专家。', price_val: 0, coverage_val: 0 }],
+        analysis: null
     })
   }
 }

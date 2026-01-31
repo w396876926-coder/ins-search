@@ -8,9 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// ==========================================
-// 1. 图标库
-// ==========================================
+// 图标库
 const IconThumbsUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
 const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
 const IconShield = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -49,6 +47,7 @@ const HOME_LEADERBOARD = [
   { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
 ]
 
+// 排序类型
 type SortType = 'recommend' | 'leverage' | 'coverage' | 'company'
 const SORT_OPTIONS = [
   { value: 'recommend', label: '综合推荐', icon: IconThumbsUp },
@@ -57,6 +56,7 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
+// 评论素材库
 const COMMENTS_POOL = [
     { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
     { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
@@ -118,14 +118,8 @@ export default function Home() {
     if (localData && localData.length > 0) {
       setRawCases(localData)
       setAnalysisData({
-          pass_rate: '90%',
-          risk_level: '低风险',
-          price_estimate: '¥288起/年',
-          coverage_estimate: '600万',
-          best_product: localData[0]?.product_name,
-          strategy_main: '百万医疗险',
-          strategy_fix: '特药险',
-          strategy_bottom: '惠民保'
+          pass_rate: '90%', risk_level: '低风险', price_estimate: '¥288起/年', coverage_estimate: '600万',
+          best_product: localData[0]?.product_name, strategy_main: '百万医疗险', strategy_fix: '特药险', strategy_bottom: '惠民保'
       })
       setLoading(false)
     } else {
@@ -148,7 +142,7 @@ export default function Home() {
                 setRawCases(newCases)
                 if (result.analysis) setAnalysisData(result.analysis)
             } else {
-                setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '建议人工介入', content: '未检索到明确的标准件产品，建议点击下方咨询。' }])
+                setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '建议人工介入', content: '未检索到明确的标准件产品。' }])
             }
         } catch (e) {
             console.error('AI Search Failed', e)
@@ -172,12 +166,18 @@ export default function Home() {
     }
   }
 
+  // ✅ 真正的排序算法实现
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
-    return rawCases.map((item, idx) => {
+    
+    // 1. 数据清洗：加入大公司标记、评论
+    let items = rawCases.map((item) => {
        const shuffledComments = [...COMMENTS_POOL].sort(() => 0.5 - Math.random());
        const randomCount = Math.floor(Math.random() * 4) + 1;
-       const selectedComments = shuffledComments.slice(0, randomCount);
+       
+       // 识别大公司
+       const bigCompanies = ['平安', '人保', '中国人寿', '太平洋', '泰康', '新华', '友邦'];
+       const isBig = bigCompanies.some(c => item.company?.includes(c));
 
        return {
            name: item.product_name || '未知产品',
@@ -185,12 +185,40 @@ export default function Home() {
            verdict: item.verdict,
            content: item.content,
            summary: item.summary,
-           passRate: item.passCount ? Math.round((item.passCount/item.totalCount)*100) : 0,
-           tags: item.company?.includes('平安') ? ['大公司', '理赔快'] : ['高性价比'],
-           mockReviews: selectedComments
+           // 使用 AI 提取的数值，如果没有则给个默认值防止排序报错
+           priceVal: item.price_val || 9999,
+           coverageVal: item.coverage_val || 0,
+           isBigCompany: isBig,
+           mockReviews: shuffledComments.slice(0, randomCount)
        }
     })
-  }, [rawCases])
+
+    // 2. 根据 activeSort 进行真实排序
+    if (activeSort === 'recommend') {
+        // 综合推荐：标体(pass) > 除外(exclude) > 人核(manual)
+        items.sort((a, b) => {
+            const score = (v: string) => v === 'pass' ? 3 : v === 'exclude' ? 2 : 1;
+            return score(b.verdict) - score(a.verdict);
+        })
+    } else if (activeSort === 'leverage') {
+        // 高性价比：保费越低越好，保额越高越好 (简单算法：保额/保费)
+        // 注意：防止分母为0
+        items.sort((a, b) => {
+            const ratioA = a.coverageVal / (a.priceVal || 1);
+            const ratioB = b.coverageVal / (b.priceVal || 1);
+            return ratioB - ratioA; // 降序
+        })
+    } else if (activeSort === 'coverage') {
+        // 覆盖率广：其实就是谁能买。这里我们可以理解为“除外承保”也算覆盖广
+        // 或者简单点：保额高的排前面
+        items.sort((a, b) => b.coverageVal - a.coverageVal);
+    } else if (activeSort === 'company') {
+        // 大公司：大公司置顶，其他的按默认排
+        items.sort((a, b) => (b.isBigCompany ? 1 : 0) - (a.isBigCompany ? 1 : 0));
+    }
+
+    return items
+  }, [rawCases, activeSort])
 
   const resetHome = () => {
     setQuery('')
@@ -205,8 +233,8 @@ export default function Home() {
       {loading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="mb-4"><IconLoading /></div>
-            <div className="text-lg font-bold text-slate-800">AI 正在为您精算保费...</div>
-            <div className="text-sm text-slate-500 mt-2">分析全网 100+ 产品条款</div>
+            <div className="text-lg font-bold text-slate-800">AI 正在深度检索 "{query}"</div>
+            <div className="text-sm text-slate-500 mt-2">分析全网数据 & 精算保费中...</div>
         </div>
       )}
 
@@ -273,7 +301,7 @@ export default function Home() {
           /* 结果页 */
           <div className="animate-fade-in-up space-y-6">
             
-            {/* ✅ 修复：不再显示杠杆率，改为显示“预估保费”和“最高保额” */}
+            {/* 分析卡片 */}
             {analysisData && (
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-indigo-50 mb-6">
                    <div className="flex items-center gap-2 mb-6">
@@ -332,7 +360,8 @@ export default function Home() {
                                 <div className="flex items-center gap-3 mb-2">
                                    <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${idx===0 ? 'bg-red-500 text-white' : idx===1 ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{idx + 1}</span>
                                    <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
-                                   {product.tags?.map((t:string) => <span key={t} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{t}</span>)}
+                                   {product.isBigCompany && <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-bold">大公司</span>}
+                                   {product.priceVal < 500 && <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-bold">高性价比</span>}
                                 </div>
                                 <div className="text-xs text-gray-400 flex items-center gap-3">
                                    <span>🏢 {product.company}</span>
