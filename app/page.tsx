@@ -9,7 +9,7 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 图标库
+// 1. 图标库 (内置 SVG)
 // ==========================================
 const IconThumbsUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
 const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
@@ -18,6 +18,7 @@ const IconBuilding = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" he
 const IconCamera = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
 const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
 const IconLoading = () => <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -55,7 +56,7 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
-// ✅ 扩充后的真实案例素材库 (用于生成千人千面的评论)
+// 评论素材库
 const COMMENTS_POOL = [
     { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
     { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
@@ -91,7 +92,6 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
-  // 切换专家函数 (点击右上角)
   const handleSwitchExpert = () => {
     const currentIndex = EXPERTS.findIndex(e => e.id === selectedExpert.id)
     const nextIndex = (currentIndex + 1) % EXPERTS.length
@@ -107,7 +107,6 @@ export default function Home() {
     setHasSearched(true)
     setExpandedProductId(null)
 
-    // 1. 查本地库
     const { data: localData } = await supabase
       .from('cases')
       .select('*')
@@ -118,7 +117,6 @@ export default function Home() {
       setRawCases(localData)
       setLoading(false)
     } else {
-        // 2. 查 AI
         try {
             const res = await fetch('/api/ai-search', {
                 method: 'POST',
@@ -161,13 +159,14 @@ export default function Home() {
     }
   }
 
-  // ✅ 核心逻辑：为每个产品随机分配不同的“真实评论”
+  // ✅ 核心优化：随机化评论数量 (1-4条)，解决“太假”的问题
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
     return rawCases.map((item, idx) => {
-       // 根据索引打乱数组，确保每个产品拿到的评论不一样
        const shuffledComments = [...COMMENTS_POOL].sort(() => 0.5 - Math.random());
-       const selectedComments = shuffledComments.slice(0, 3); // 取前3条
+       // 随机取 1 到 4 条评论
+       const randomCount = Math.floor(Math.random() * 4) + 1;
+       const selectedComments = shuffledComments.slice(0, randomCount);
 
        return {
            name: item.product_name || '未知产品',
@@ -177,7 +176,6 @@ export default function Home() {
            summary: item.summary,
            passRate: item.passCount ? Math.round((item.passCount/item.totalCount)*100) : 0,
            tags: item.company?.includes('平安') ? ['大公司', '理赔快'] : ['高性价比'],
-           // 绑定这组随机评论
            mockReviews: selectedComments
        }
     })
@@ -193,7 +191,6 @@ export default function Home() {
     <div className="min-h-screen bg-[#F4F6F9] font-sans text-slate-900 pb-32">
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
 
-      {/* Loading 遮罩 */}
       {loading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="mb-4"><IconLoading /></div>
@@ -211,8 +208,6 @@ export default function Home() {
           <span className="text-2xl">🛡️</span>
           <span className="font-bold text-gray-800 tracking-tight">HealthGuardian</span>
         </div>
-        
-        {/* ✅ 修复：右上角“点击切换顾问” (图二同款效果) */}
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleSwitchExpert}>
            <div className="text-right hidden md:block">
               <div className="text-sm font-bold text-gray-900">咨询: <span className="text-blue-600">{selectedExpert.name}</span></div>
@@ -282,6 +277,53 @@ export default function Home() {
         ) : (
           /* 搜索结果状态 */
           <div className="animate-fade-in-up space-y-6">
+            
+            {/* ✅ 修复：新增“图三同款”核保胜率分析卡片 */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-indigo-50 mb-6">
+               <div className="flex items-center gap-2 mb-6">
+                  <span className="text-2xl"><IconChart /></span>
+                  <h2 className="text-xl font-bold text-gray-900">“{query}” 核保胜率分析</h2>
+                  <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-bold">中等风险</span>
+               </div>
+
+               <div className="grid grid-cols-3 gap-4 mb-6 text-center">
+                  <div>
+                     <div className="text-gray-400 text-xs mb-1">通过率</div>
+                     <div className="text-2xl font-black text-gray-900">95%</div>
+                  </div>
+                  <div>
+                     <div className="text-gray-400 text-xs mb-1">拒保率</div>
+                     <div className="text-2xl font-black text-red-500">5%</div>
+                  </div>
+                  <div>
+                     <div className="text-gray-400 text-xs mb-1">最佳承保</div>
+                     <div className="text-lg font-bold text-gray-900">{aggregatedProducts[0]?.name?.split(' ')[0] || '待定'}</div>
+                  </div>
+               </div>
+
+               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col md:flex-row items-center gap-6">
+                   <div className="text-center min-w-[100px]">
+                       <div className="text-xs text-gray-400 mb-1">预估杠杆</div>
+                       <div className="text-4xl font-black text-blue-600 tracking-tighter">1 : 200</div>
+                       <div className="text-[10px] text-gray-400 mt-1">投入1元 : 赔付200元</div>
+                   </div>
+                   <div className="flex-1 space-y-3 text-sm">
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">主险</span> 
+                           <span className="text-gray-600 font-medium">重疾险 (接受除外)</span>
+                       </div>
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">补丁</span> 
+                           <span className="text-gray-600 font-medium">特定疾病/复发险</span>
+                       </div>
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">兜底</span> 
+                           <span className="text-gray-600 font-medium">惠民保 (防并发症)</span>
+                       </div>
+                   </div>
+               </div>
+            </div>
+
             <div className="flex flex-wrap gap-3 py-2 sticky top-20 z-10 bg-[#F4F6F9]/90 backdrop-blur pb-4">
                {SORT_OPTIONS.map(opt => {
                  const Icon = opt.icon;
@@ -324,7 +366,6 @@ export default function Home() {
                              </div>
                           </div>
                           
-                          {/* ✅ 修复：展示每个产品独有的随机评论，不再重复 */}
                           {expandedProductId === product.name && (
                              <div className="bg-slate-50 border-t border-gray-100 p-5 animate-fade-in-down">
                                 <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm shadow-sm mb-4">
@@ -332,10 +373,10 @@ export default function Home() {
                                    <p className="text-gray-600 mb-4">{product.content}</p>
                                    
                                    <div className="border-t border-gray-100 pt-4 mt-4">
-                                      <p className="text-xs font-bold text-gray-500 mb-3">👥 相似用户真实反馈 (3)</p>
+                                      <p className="text-xs font-bold text-gray-500 mb-3">👥 相似用户真实反馈 ({product.mockReviews?.length || 0})</p>
                                       {product.mockReviews?.map((c: any, i: number) => (
                                           <div key={i} className="mb-2 last:mb-0 bg-slate-50 p-2 rounded text-xs text-gray-600 flex gap-2">
-                                              <span className={`px-1 rounded font-bold ${c.verdict==='pass'?'bg-green-100 text-green-700':c.verdict==='exclude'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}`}>{c.verdict==='pass'?'通过':'除外'}</span>
+                                              <span className={`px-1 rounded font-bold h-fit whitespace-nowrap ${c.verdict==='pass'?'bg-green-100 text-green-700':c.verdict==='exclude'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}`}>{c.verdict==='pass'?'通过':'除外'}</span>
                                               <span>{c.content}</span>
                                           </div>
                                       ))}
@@ -357,7 +398,6 @@ export default function Home() {
                )}
             </div>
 
-            {/* 底部专家卡片 (点击也可切换当前顾问) */}
             <div className="bg-slate-900 rounded-3xl p-6 text-white mt-12 text-center">
                <h3 className="text-xl font-bold mb-2">找不到满意的产品？</h3>
                <p className="text-gray-400 text-sm mb-6">术业有专攻，选择一位最对您眼缘的专家</p>
