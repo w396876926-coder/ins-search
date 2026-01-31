@@ -2,15 +2,13 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 
-// 1. 初始化 Supabase (用于存数据)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// 2. 初始化 Kimi (Moonshot)
 const client = new OpenAI({
-  apiKey: process.env.MOONSHOT_API_KEY, // 这里会自动去读您在 Vercel 填的 Key
+  apiKey: process.env.MOONSHOT_API_KEY, 
   baseURL: "https://api.moonshot.cn/v1",
 })
 
@@ -19,16 +17,13 @@ export async function POST(req: Request) {
     const { disease } = await req.json()
     if (!disease) return NextResponse.json({ error: 'No disease' }, { status: 400 })
 
-    console.log(`🔍 [Server] 正在联网搜索: ${disease}`)
+    console.log(`🔍 [Server] Searching for: ${disease}`)
 
-    // 3. 调用 Tavily 搜索全网信息
     const searchResponse = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key: process.env.TAVILY_API_KEY, // 这里会自动读 Vercel 的 Tavily Key
+        api_key: process.env.TAVILY_API_KEY,
         query: `2024年 ${disease} 核保宽松的保险产品 推荐`,
         search_depth: "basic",
         include_answer: true,
@@ -36,14 +31,11 @@ export async function POST(req: Request) {
       })
     })
     
-    if (!searchResponse.ok) {
-        throw new Error('Tavily Search Failed')
-    }
+    if (!searchResponse.ok) throw new Error('Tavily Search Failed')
 
     const searchData = await searchResponse.json()
     const searchContext = searchData.results.map((r: any) => r.content).join('\n')
 
-    // 4. 调用 Kimi 分析情报
     const completion = await client.chat.completions.create({
       model: "moonshot-v1-8k",
       messages: [
@@ -54,7 +46,7 @@ export async function POST(req: Request) {
           搜索信息：
           ${searchContext}
 
-          请严格返回 JSON 格式，不要包含 markdown 符号 (```json)：
+          请严格返回 JSON 格式，不要包含 markdown 符号：
           {
             "products": [
               {
@@ -72,13 +64,12 @@ export async function POST(req: Request) {
     })
 
     const aiText = completion.choices[0].message.content || '{}'
-    const aiResult = JSON.parse(aiText)
+    const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '')
+    const aiResult = JSON.parse(cleanJson)
     const products = aiResult.products || []
 
-    // 5. ✨ 核心逻辑：自动回写数据库
     if (products.length > 0) {
       for (const p of products) {
-        // 插入数据库
         await supabase.from('cases').insert({
           disease_type: disease,
           product_name: p.product_name,
@@ -89,14 +80,12 @@ export async function POST(req: Request) {
           created_at: new Date().toISOString()
         })
       }
-      console.log(`✅ [Server] 已将 ${products.length} 条新知识写入数据库！`)
     }
 
     return NextResponse.json({ success: true, data: products })
 
   } catch (error) {
     console.error('❌ AI Search Error:', error)
-    // 即使失败，也返回一个空数组，防止前端报错
     return NextResponse.json({ success: false, error: 'Search failed' }, { status: 500 })
   }
 }
