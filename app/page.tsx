@@ -2,17 +2,49 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-// ✅ 引入专业图标库 (需运行 npm install lucide-react)
-import { ThumbsUp, TrendingUp, ShieldCheck, Building2, Camera, ChevronDown } from 'lucide-react'
 
-// 初始化 Supabase
+// Initialize Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 // ==========================================
-// 1. 静态数据配置 (全中文)
+// 1. Internal SVG Icons (No 'lucide-react' needed)
+// ==========================================
+const IconThumbsUp = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+  </svg>
+)
+const IconTrendingUp = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+  </svg>
+)
+const IconShield = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>
+  </svg>
+)
+const IconBuilding = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/>
+  </svg>
+)
+const IconCamera = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="gray" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>
+  </svg>
+)
+const IconChevronDown = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m6 9 6 6 6-6"/>
+  </svg>
+)
+
+// ==========================================
+// 2. Static Data (Chinese)
 // ==========================================
 
 const LIVE_TICKER = [
@@ -42,13 +74,12 @@ const HOME_LEADERBOARD = [
   { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
 ]
 
-// ✅ 修复：全中文标签 + Lucide 图标
 type SortType = 'recommend' | 'leverage' | 'coverage' | 'company'
 const SORT_OPTIONS = [
-  { value: 'recommend', label: '综合推荐', icon: ThumbsUp },
-  { value: 'leverage', label: '高性价比', icon: TrendingUp },
-  { value: 'coverage', label: '覆盖率广', icon: ShieldCheck },
-  { value: 'company', label: '大公司', icon: Building2 }, 
+  { value: 'recommend', label: '综合推荐', icon: IconThumbsUp },
+  { value: 'leverage', label: '高性价比', icon: IconTrendingUp },
+  { value: 'coverage', label: '覆盖率广', icon: IconShield },
+  { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
 export default function Home() {
@@ -115,7 +146,6 @@ export default function Home() {
     rawCases.forEach(item => {
       const pName = item.product_name || '未知产品'
       if (!productMap[pName]) {
-        // 全中文默认值
         productMap[pName] = {
           name: pName,
           company: item.company || '通用保司',
@@ -199,8 +229,7 @@ export default function Home() {
                 className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
                 title="拍照识别体检单"
               >
-                {/* 使用 Lucide 相机图标 */}
-                <Camera className="w-5 h-5" />
+                <IconCamera />
               </button>
 
               <input
@@ -296,10 +325,9 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* 图标筛选区：这里是修复重点 */}
             <div className="flex flex-wrap gap-3 py-2">
                {SORT_OPTIONS.map(opt => {
-                 const Icon = opt.icon; // 获取图标组件
+                 const Icon = opt.icon;
                  return (
                    <button
                      key={opt.value}
@@ -310,8 +338,7 @@ export default function Home() {
                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                      }`}
                    >
-                     {/* 渲染专业图标 */}
-                     <Icon className="w-4 h-4" />
+                     <Icon />
                      {opt.label}
                    </button>
                  )
@@ -323,8 +350,8 @@ export default function Home() {
                  <>
                    {aggregatedProducts.map((product: any, idx) => {
                      const rate = Math.round((product.passCount / product.totalCount) * 100);
-                     // ✅ 修复：0% -> 专家核保
-                     const displayRate = rate > 0 ? `${rate}%` : '专家核保';
+                     // ✅ 修复：0% -> 需人工 (蓝色)
+                     const displayRate = rate > 0 ? `${rate}%` : '需人工';
                      const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600';
 
                      return (
@@ -356,7 +383,7 @@ export default function Home() {
                                    </div>
                                 </div>
                                 <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${expandedProductId === product.name ? 'rotate-180 bg-gray-100' : 'bg-gray-50'}`}>
-                                   <ChevronDown className="w-5 h-5 text-gray-400" />
+                                   <IconChevronDown />
                                 </button>
                              </div>
                           </div>
@@ -384,7 +411,7 @@ export default function Home() {
                                 </div>
                                 <div className="mt-4 text-center">
                                    <button className="text-sm font-bold text-blue-600 bg-white border border-blue-200 px-6 py-2 rounded-full shadow-sm hover:bg-blue-50">
-                                      👉 既然能买，找 {selectedExpert.name} 协助投保
+                                      👉 申请 {selectedExpert.name} 协助投保
                                    </button>
                                 </div>
                              </div>
