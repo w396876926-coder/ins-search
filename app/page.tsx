@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-// ✅ 引入专业图标库
+// ✅ 引入专业图标库 (需运行 npm install lucide-react)
 import { ThumbsUp, TrendingUp, ShieldCheck, Building2, Camera, ChevronDown } from 'lucide-react'
 
 // 初始化 Supabase
@@ -12,7 +12,7 @@ const supabase = createClient(
 )
 
 // ==========================================
-// 1. 静态数据配置
+// 1. 静态数据配置 (全中文)
 // ==========================================
 
 const LIVE_TICKER = [
@@ -42,7 +42,7 @@ const HOME_LEADERBOARD = [
   { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
 ]
 
-// ✅ 修复：使用 React 组件作为图标，而不是 Emoji 字符串
+// ✅ 修复：全中文标签 + Lucide 图标
 type SortType = 'recommend' | 'leverage' | 'coverage' | 'company'
 const SORT_OPTIONS = [
   { value: 'recommend', label: '综合推荐', icon: ThumbsUp },
@@ -115,6 +115,7 @@ export default function Home() {
     rawCases.forEach(item => {
       const pName = item.product_name || '未知产品'
       if (!productMap[pName]) {
+        // 全中文默认值
         productMap[pName] = {
           name: pName,
           company: item.company || '通用保司',
@@ -198,7 +199,7 @@ export default function Home() {
                 className="absolute left-2 top-2 h-10 w-10 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-10 active:scale-95"
                 title="拍照识别体检单"
               >
-                {/* 替换为 Lucide 相机图标 */}
+                {/* 使用 Lucide 相机图标 */}
                 <Camera className="w-5 h-5" />
               </button>
 
@@ -295,10 +296,10 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* ✅ 修复：新的 Tag 样式，使用 Lucide 图标，解决大公司图标重复问题 */}
+            {/* 图标筛选区：这里是修复重点 */}
             <div className="flex flex-wrap gap-3 py-2">
                {SORT_OPTIONS.map(opt => {
-                 const Icon = opt.icon;
+                 const Icon = opt.icon; // 获取图标组件
                  return (
                    <button
                      key={opt.value}
@@ -309,7 +310,7 @@ export default function Home() {
                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                      }`}
                    >
-                     {/* 渲染图标组件 */}
+                     {/* 渲染专业图标 */}
                      <Icon className="w-4 h-4" />
                      {opt.label}
                    </button>
@@ -322,7 +323,7 @@ export default function Home() {
                  <>
                    {aggregatedProducts.map((product: any, idx) => {
                      const rate = Math.round((product.passCount / product.totalCount) * 100);
-                     // ✅ 修复：不显示 0%，显示更有希望的文案
+                     // ✅ 修复：0% -> 专家核保
                      const displayRate = rate > 0 ? `${rate}%` : '专家核保';
                      const rateColor = rate > 0 ? 'text-green-600' : 'text-blue-600';
 
@@ -383,7 +384,7 @@ export default function Home() {
                                 </div>
                                 <div className="mt-4 text-center">
                                    <button className="text-sm font-bold text-blue-600 bg-white border border-blue-200 px-6 py-2 rounded-full shadow-sm hover:bg-blue-50">
-                                      👉 申请 {selectedExpert.name} 协助投保
+                                      👉 既然能买，找 {selectedExpert.name} 协助投保
                                    </button>
                                 </div>
                              </div>
