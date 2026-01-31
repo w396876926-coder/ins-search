@@ -19,6 +19,7 @@ const IconCamera = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
 const IconLoading = () => <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
 const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+const IconMoney = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -73,7 +74,6 @@ const COMMENTS_POOL = [
 export default function Home() {
   const [query, setQuery] = useState('')
   const [rawCases, setRawCases] = useState<any[]>([]) 
-  // 新增：用于存储 AI 动态生成的分析数据
   const [analysisData, setAnalysisData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -107,9 +107,8 @@ export default function Home() {
     setLoading(true)
     setHasSearched(true)
     setExpandedProductId(null)
-    setAnalysisData(null) // 清空旧数据
+    setAnalysisData(null)
 
-    // 1. 查本地
     const { data: localData } = await supabase
       .from('cases')
       .select('*')
@@ -118,19 +117,18 @@ export default function Home() {
 
     if (localData && localData.length > 0) {
       setRawCases(localData)
-      // 如果是本地数据，给一个默认的优质分析显示，或者不显示
       setAnalysisData({
-          pass_rate: '92%',
-          reject_rate: '8%',
-          best_product: localData[0]?.product_name || '推荐产品',
-          leverage: '1:150',
-          strategy_main: '标准重疾险',
-          strategy_fix: '特定疾病险',
+          pass_rate: '90%',
+          risk_level: '低风险',
+          price_estimate: '¥288起/年',
+          coverage_estimate: '600万',
+          best_product: localData[0]?.product_name,
+          strategy_main: '百万医疗险',
+          strategy_fix: '特药险',
           strategy_bottom: '惠民保'
       })
       setLoading(false)
     } else {
-        // 2. 查 AI (动态生成数据)
         try {
             const res = await fetch('/api/ai-search', {
                 method: 'POST',
@@ -140,7 +138,6 @@ export default function Home() {
             const result = await res.json()
             
             if (result.success && result.data) {
-                // 设置列表数据
                 const newCases = result.data.map((p:any) => ({
                     ...p,
                     id: Math.random(),
@@ -149,11 +146,7 @@ export default function Home() {
                     created_at: new Date().toISOString()
                 }))
                 setRawCases(newCases)
-                
-                // ✅ 核心：设置 AI 动态生成的分析卡片数据
-                if (result.analysis) {
-                    setAnalysisData(result.analysis)
-                }
+                if (result.analysis) setAnalysisData(result.analysis)
             } else {
                 setRawCases([{ product_name: '人工核保服务', company: 'HealthGuardian', verdict: 'manual', passCount:0, totalCount:1, summary: '建议人工介入', content: '未检索到明确的标准件产品，建议点击下方咨询。' }])
             }
@@ -212,8 +205,8 @@ export default function Home() {
       {loading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="mb-4"><IconLoading /></div>
-            <div className="text-lg font-bold text-slate-800">AI 正在全网检索 "{query}"</div>
-            <div className="text-sm text-slate-500 mt-2">分析 100+ 家保险公司核保手册...</div>
+            <div className="text-lg font-bold text-slate-800">AI 正在为您精算保费...</div>
+            <div className="text-sm text-slate-500 mt-2">分析全网 100+ 产品条款</div>
         </div>
       )}
 
@@ -280,49 +273,38 @@ export default function Home() {
           /* 结果页 */
           <div className="animate-fade-in-up space-y-6">
             
-            {/* ✅ 修复：完全动态的 AI 核保胜率分析卡片 */}
+            {/* ✅ 修复：不再显示杠杆率，改为显示“预估保费”和“最高保额” */}
             {analysisData && (
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-indigo-50 mb-6">
                    <div className="flex items-center gap-2 mb-6">
                       <span className="text-2xl"><IconChart /></span>
                       <h2 className="text-xl font-bold text-gray-900">“{query}” 核保胜率分析</h2>
-                      <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-bold">中等风险</span>
+                      <span className={`text-xs px-2 py-1 rounded font-bold ${analysisData.risk_level?.includes('高') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{analysisData.risk_level || '中等风险'}</span>
                    </div>
 
-                   <div className="grid grid-cols-3 gap-4 mb-6 text-center">
-                      <div>
-                         <div className="text-gray-400 text-xs mb-1">通过率</div>
-                         <div className="text-2xl font-black text-gray-900">{analysisData.pass_rate || '--'}</div>
+                   <div className="grid grid-cols-2 gap-4 mb-6 text-center">
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                         <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1"><IconMoney /> 预估起步保费</div>
+                         <div className="text-2xl font-black text-gray-900">{analysisData.price_estimate || '¥--'}</div>
                       </div>
-                      <div>
-                         <div className="text-gray-400 text-xs mb-1">拒保率</div>
-                         <div className="text-2xl font-black text-red-500">{analysisData.reject_rate || '--'}</div>
-                      </div>
-                      <div>
-                         <div className="text-gray-400 text-xs mb-1">最佳承保</div>
-                         <div className="text-lg font-bold text-gray-900 truncate px-2">{analysisData.best_product || '待定'}</div>
+                      <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                         <div className="text-blue-400 text-xs mb-1 flex items-center justify-center gap-1"><IconShield /> 最高可买保额</div>
+                         <div className="text-2xl font-black text-blue-600">{analysisData.coverage_estimate || '--万'}</div>
                       </div>
                    </div>
 
-                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col md:flex-row items-center gap-6">
-                       <div className="text-center min-w-[100px]">
-                           <div className="text-xs text-gray-400 mb-1">预估杠杆</div>
-                           <div className="text-4xl font-black text-blue-600 tracking-tighter">{analysisData.leverage || '1:--'}</div>
-                           <div className="text-[10px] text-gray-400 mt-1">投入1元 : 赔付多倍</div>
+                   <div className="space-y-3 text-sm px-2">
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">主险</span> 
+                           <span className="text-gray-600 font-medium truncate flex-1">{analysisData.strategy_main}</span>
                        </div>
-                       <div className="flex-1 space-y-3 text-sm w-full">
-                           <div className="flex gap-3 items-center">
-                               <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">主险</span> 
-                               <span className="text-gray-600 font-medium truncate">{analysisData.strategy_main || '重疾险'}</span>
-                           </div>
-                           <div className="flex gap-3 items-center">
-                               <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">补丁</span> 
-                               <span className="text-gray-600 font-medium truncate">{analysisData.strategy_fix || '特定险'}</span>
-                           </div>
-                           <div className="flex gap-3 items-center">
-                               <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">兜底</span> 
-                               <span className="text-gray-600 font-medium truncate">{analysisData.strategy_bottom || '惠民保'}</span>
-                           </div>
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">补丁</span> 
+                           <span className="text-gray-600 font-medium truncate flex-1">{analysisData.strategy_fix}</span>
+                       </div>
+                       <div className="flex gap-3 items-center">
+                           <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold h-fit min-w-[40px] text-center">兜底</span> 
+                           <span className="text-gray-600 font-medium truncate flex-1">{analysisData.strategy_bottom}</span>
                        </div>
                    </div>
                 </div>
