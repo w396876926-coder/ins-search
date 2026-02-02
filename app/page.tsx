@@ -20,6 +20,8 @@ const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20"
 const IconLoading = () => <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
 const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
 const IconMoney = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+const IconPhone = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -39,6 +41,7 @@ const CATEGORIES = [
 const EXPERTS = [
   { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male', desc: '前平安核保主管' },
   { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', desc: '临床医学背景' },
+  { id: 'e3', name: 'Chris', title: '理赔专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris', gender: 'male', desc: '赔付经验丰富' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -56,7 +59,7 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
-// 评论素材库 (通用化)
+// 评论素材库
 const COMMENTS_POOL = [
     { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
     { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
@@ -85,7 +88,7 @@ export default function Home() {
   
   // 弹窗状态
   const [showModal, setShowModal] = useState(false)
-  const [contactInfo, setContactInfo] = useState('') // 用户填写的联系方式
+  const [contactInfo, setContactInfo] = useState('') 
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -103,19 +106,17 @@ export default function Home() {
     setSelectedExpert(EXPERTS[nextIndex])
   }
 
-  // 打开预约弹窗
   const handleConsult = () => {
     setShowModal(true)
     setSubmitStatus('idle')
     setContactInfo('')
   }
 
-  // 提交联系方式 (真获客逻辑)
+  // 提交联系方式
   const submitContact = async () => {
     if (!contactInfo) return
     setSubmitStatus('submitting')
     
-    // 存入 Supabase 的 submissions 表 (复用之前的表)
     await supabase.from('submissions').insert([
         { 
             disease_type: query || '未知病种', 
@@ -126,7 +127,7 @@ export default function Home() {
     ])
     
     setSubmitStatus('success')
-    setTimeout(() => setShowModal(false), 2000)
+    setTimeout(() => setShowModal(false), 3000)
   }
 
   const handleSearch = async (keywordOverride?: string) => {
@@ -259,7 +260,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ✅ 真实留资弹窗 */}
+      {/* ✅ V10.1 弹窗升级：包含官方联系方式 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center animate-fade-in px-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
@@ -273,17 +274,16 @@ export default function Home() {
                     </div>
                 ) : (
                     <>
-                        <div className="text-center mb-6">
+                        <div className="text-center mb-4">
                             <img src={selectedExpert.image} className="w-16 h-16 rounded-full mx-auto mb-3 border-4 border-blue-50" />
-                            <h3 className="text-lg font-bold text-gray-900">预约 {selectedExpert.name} 专家</h3>
-                            <p className="text-xs text-gray-500 mt-1">每日仅限 10 个免费名额</p>
+                            <h3 className="text-lg font-bold text-gray-900">咨询 {selectedExpert.name} 专家</h3>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">您的联系方式 (微信/手机) *</label>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">您的联系方式 (手机/微信) *</label>
                                 <input 
                                     type="text" 
-                                    placeholder="请输入..."
+                                    placeholder="方便我们联系您..."
                                     className="w-full h-12 px-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none bg-gray-50"
                                     value={contactInfo}
                                     onChange={(e) => setContactInfo(e.target.value)}
@@ -294,9 +294,22 @@ export default function Home() {
                                 disabled={!contactInfo}
                                 className="w-full h-12 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-all"
                             >
-                                {submitStatus === 'submitting' ? '提交中...' : '立即预约'}
+                                {submitStatus === 'submitting' ? '提交中...' : '稍后联系我'}
                             </button>
-                            <p className="text-[10px] text-center text-gray-400">您的隐私将受到严格保护，仅用于核保咨询</p>
+                            
+                            {/* 🔥 新增：主动联系方式 */}
+                            <div className="relative flex py-2 items-center">
+                                <div className="flex-grow border-t border-gray-200"></div>
+                                <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">或主动联系</span>
+                                <div className="flex-grow border-t border-gray-200"></div>
+                            </div>
+                            
+                            <div className="text-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <p className="text-xs text-gray-500 mb-1">官方微信 (点击复制)</p>
+                                <div className="font-mono font-bold text-lg text-slate-800 select-all">HealthGuardian_VIP</div>
+                                <p className="text-[10px] text-blue-500 mt-1">👆 加好友备注“核保”优先通过</p>
+                            </div>
+
                         </div>
                     </>
                 )}
