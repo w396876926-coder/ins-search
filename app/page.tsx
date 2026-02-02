@@ -47,7 +47,6 @@ const HOME_LEADERBOARD = [
   { rank: 4, name: '肺微浸润腺癌', ratio: '1 : 120', tag: '术后逆袭', desc: '防癌医疗险+惠民保兜底' },
 ]
 
-// 排序类型
 type SortType = 'recommend' | 'leverage' | 'coverage' | 'company'
 const SORT_OPTIONS = [
   { value: 'recommend', label: '综合推荐', icon: IconThumbsUp },
@@ -56,7 +55,6 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
-// 评论素材库
 const COMMENTS_POOL = [
     { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
     { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
@@ -109,6 +107,7 @@ export default function Home() {
     setExpandedProductId(null)
     setAnalysisData(null)
 
+    // 1. 本地
     const { data: localData } = await supabase
       .from('cases')
       .select('*')
@@ -123,6 +122,7 @@ export default function Home() {
       })
       setLoading(false)
     } else {
+        // 2. AI
         try {
             const res = await fetch('/api/ai-search', {
                 method: 'POST',
@@ -177,7 +177,7 @@ export default function Home() {
        
        // 识别大公司
        const bigCompanies = ['平安', '人保', '中国人寿', '太平洋', '泰康', '新华', '友邦'];
-       const isBig = bigCompanies.some(c => item.company?.includes(c));
+       const isBig = bigCompanies.some(c => item.company?.includes(c)) || item.is_big_company;
 
        return {
            name: item.product_name || '未知产品',
@@ -201,7 +201,7 @@ export default function Home() {
             return score(b.verdict) - score(a.verdict);
         })
     } else if (activeSort === 'leverage') {
-        // 高性价比：保费越低越好，保额越高越好 (简单算法：保额/保费)
+        // 高性价比：保额/价格 比值越高越好
         // 注意：防止分母为0
         items.sort((a, b) => {
             const ratioA = a.coverageVal / (a.priceVal || 1);
@@ -209,8 +209,7 @@ export default function Home() {
             return ratioB - ratioA; // 降序
         })
     } else if (activeSort === 'coverage') {
-        // 覆盖率广：其实就是谁能买。这里我们可以理解为“除外承保”也算覆盖广
-        // 或者简单点：保额高的排前面
+        // 覆盖率广：保额高的排前面
         items.sort((a, b) => b.coverageVal - a.coverageVal);
     } else if (activeSort === 'company') {
         // 大公司：大公司置顶，其他的按默认排

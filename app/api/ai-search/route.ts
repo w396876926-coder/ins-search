@@ -8,6 +8,7 @@ const supabase = createClient(
 )
 
 export async function POST(req: Request) {
+  // 检查 Key
   if (!process.env.MOONSHOT_API_KEY || !process.env.TAVILY_API_KEY) {
     return NextResponse.json({ error: 'Config Error' }, { status: 500 });
   }
@@ -19,9 +20,9 @@ export async function POST(req: Request) {
 
   try {
     const { disease } = await req.json()
-    console.log(`🔍 深度搜索: ${disease}`)
+    console.log(`🔍 [V9.1] 正在全网深度搜索: ${disease}`)
 
-    // 1. Tavily 搜索 (扩大搜索量到 8 条，获取更多全网精华)
+    // 1. Tavily 搜索 (量级翻倍：max_results 改为 8，获取更多全网精华)
     const searchResponse = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -30,15 +31,15 @@ export async function POST(req: Request) {
         query: `2024年 ${disease} 保险核保 宽松产品 测评 价格 列表`, 
         search_depth: "basic",
         include_answer: false,
-        max_results: 8 // ✅ 翻倍搜索量
+        max_results: 8 // ✅ 翻倍搜索量，确保结果丰富
       })
     })
     
     const searchData = await searchResponse.json()
-    // 增加上下文长度，容纳更多信息
+    // 增加上下文长度，容纳更多产品信息
     const context = searchData.results?.map((r: any) => r.content).join('\n').slice(0, 6000) || ""
 
-    // 2. Kimi AI 总结 (要求生成更多产品，并提取数值用于排序)
+    // 2. Kimi AI 总结 (核心修改：要求生成更多产品，并提取数值用于排序)
     const completion = await client.chat.completions.create({
       model: "moonshot-v1-8k",
       messages: [
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
           为了方便排序，请估算每个产品的：
           - "price_val": 预估年保费（纯数字，如 500）
           - "coverage_val": 最高保额（纯数字，单位万，如 600）
+          - "is_big_company": 是否为知名大公司（true/false，如平安、人保、国寿为true）
           
           返回纯 JSON：
           {
@@ -69,7 +71,8 @@ export async function POST(req: Request) {
                 "summary": "核心卖点",
                 "content": "详细结论",
                 "price_val": 300, 
-                "coverage_val": 600
+                "coverage_val": 600,
+                "is_big_company": true
               }
             ]
           }`
