@@ -20,7 +20,6 @@ const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20"
 const IconLoading = () => <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
 const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
 const IconMoney = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
-const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -30,17 +29,16 @@ const LIVE_TICKER = [
 ]
 
 const CATEGORIES = [
-  { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节'] },
-  { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝'] },
-  { id: 'metabolic', name: '三高/慢病', icon: '🍔', keywords: ['高血压', '糖尿病'] },
-  { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症'] },
-  { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔'] },
+  { id: 'nodule', name: '结节/囊肿', icon: '🍒', keywords: ['肺结节', '甲状腺结节', '乳腺结节'] },
+  { id: 'liver', name: '肝胆异常', icon: '🥃', keywords: ['乙肝', '脂肪肝', '胆囊息肉'] },
+  { id: 'metabolic', name: '三高/慢病', icon: '🍔', keywords: ['高血压', '糖尿病', '高尿酸'] },
+  { id: 'mental', name: '精神/心理', icon: '🧠', keywords: ['抑郁症', '焦虑症', '睡眠障碍'] },
+  { id: 'child', name: '少儿/先天', icon: '👶', keywords: ['腺样体', '卵圆孔', '自闭症'] },
 ]
 
 const EXPERTS = [
   { id: 'e1', name: 'Alex', title: '资深核保专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', gender: 'male', desc: '前平安核保主管' },
-  { id: 'e2', name: 'Bella', title: '医学硕士', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', desc: '临床医学背景' },
-  { id: 'e3', name: 'Chris', title: '理赔专家', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chris', gender: 'male', desc: '赔付经验丰富' },
+  { id: 'e2', name: 'Bella', title: '医学顾问', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bella', gender: 'female', desc: '临床医学背景' },
 ]
 
 const HOME_LEADERBOARD = [
@@ -58,10 +56,10 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
-// ✅ 优化后的“通用评论库”：适用于任何疾病，防止穿帮
+// 评论素材库 (通用化)
 const COMMENTS_POOL = [
-    { content: "我的体况指标有点异常，本来以为买不了，结果复查没变化，走了人工核保通过了。", verdict: "pass" },
-    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外，已经很满意了。", verdict: "exclude" },
+    { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
+    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
     { content: "注意看条款，虽然能买，但是既往症是不赔的，大家要看清楚。", verdict: "pass" },
     { content: "提交资料后大概2天出的结果，比预想的要快，点赞。", verdict: "pass" },
     { content: "我是带病投保，智能核保直接通过了，没有加费，太开心了！", verdict: "pass" },
@@ -85,8 +83,10 @@ export default function Home() {
   const [activeSort, setActiveSort] = useState<SortType>('recommend')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   
-  // ✅ 新增：控制弹窗状态
+  // 弹窗状态
   const [showModal, setShowModal] = useState(false)
+  const [contactInfo, setContactInfo] = useState('') // 用户填写的联系方式
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -103,10 +103,30 @@ export default function Home() {
     setSelectedExpert(EXPERTS[nextIndex])
   }
 
-  // ✅ 新增：处理咨询点击
+  // 打开预约弹窗
   const handleConsult = () => {
     setShowModal(true)
-    setTimeout(() => setShowModal(false), 3000) // 3秒后自动关闭
+    setSubmitStatus('idle')
+    setContactInfo('')
+  }
+
+  // 提交联系方式 (真获客逻辑)
+  const submitContact = async () => {
+    if (!contactInfo) return
+    setSubmitStatus('submitting')
+    
+    // 存入 Supabase 的 submissions 表 (复用之前的表)
+    await supabase.from('submissions').insert([
+        { 
+            disease_type: query || '未知病种', 
+            product_name: '预约咨询', 
+            verdict: 'pending',
+            content: `联系方式: ${contactInfo} | 意向专家: ${selectedExpert.name}` 
+        }
+    ])
+    
+    setSubmitStatus('success')
+    setTimeout(() => setShowModal(false), 2000)
   }
 
   const handleSearch = async (keywordOverride?: string) => {
@@ -183,6 +203,7 @@ export default function Home() {
     return rawCases.map((item, idx) => {
        const shuffledComments = [...COMMENTS_POOL].sort(() => 0.5 - Math.random());
        const randomCount = Math.floor(Math.random() * 4) + 1;
+       const selectedComments = shuffledComments.slice(0, randomCount);
        
        const bigCompanies = ['平安', '人保', '中国人寿', '太平洋', '泰康', '新华', '友邦'];
        const isBig = bigCompanies.some(c => item.company?.includes(c)) || item.is_big_company;
@@ -196,7 +217,7 @@ export default function Home() {
            priceVal: item.price_val || 9999,
            coverageVal: item.coverage_val || 0,
            isBigCompany: isBig,
-           mockReviews: shuffledComments.slice(0, randomCount)
+           mockReviews: selectedComments
        }
     })
 
@@ -238,18 +259,47 @@ export default function Home() {
         </div>
       )}
 
-      {/* ✅ 新增：预约成功弹窗 */}
+      {/* ✅ 真实留资弹窗 */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center animate-fade-in">
-            <div className="bg-white rounded-3xl p-8 text-center max-w-sm mx-6 shadow-2xl transform scale-105 transition-all">
-                <div className="mx-auto mb-4 bg-green-100 w-16 h-16 rounded-full flex items-center justify-center">
-                    <IconCheck />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">预约成功！</h3>
-                <p className="text-gray-500 mb-6">顾问 <span className="text-blue-600 font-bold">{selectedExpert.name}</span> 将在 10 分钟内联系您，请保持电话畅通。</p>
-                <button onClick={() => setShowModal(false)} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800">
-                    知道了
-                </button>
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center animate-fade-in px-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
+                <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+                
+                {submitStatus === 'success' ? (
+                    <div className="text-center py-6">
+                        <div className="mx-auto mb-4 bg-green-100 w-16 h-16 rounded-full flex items-center justify-center text-2xl">🎉</div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">预约成功！</h3>
+                        <p className="text-gray-500 text-sm">顾问将在 10 分钟内添加您的微信。</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-center mb-6">
+                            <img src={selectedExpert.image} className="w-16 h-16 rounded-full mx-auto mb-3 border-4 border-blue-50" />
+                            <h3 className="text-lg font-bold text-gray-900">预约 {selectedExpert.name} 专家</h3>
+                            <p className="text-xs text-gray-500 mt-1">每日仅限 10 个免费名额</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">您的联系方式 (微信/手机) *</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="请输入..."
+                                    className="w-full h-12 px-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none bg-gray-50"
+                                    value={contactInfo}
+                                    onChange={(e) => setContactInfo(e.target.value)}
+                                />
+                            </div>
+                            <button 
+                                onClick={submitContact}
+                                disabled={!contactInfo}
+                                className="w-full h-12 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-all"
+                            >
+                                {submitStatus === 'submitting' ? '提交中...' : '立即预约'}
+                            </button>
+                            <p className="text-[10px] text-center text-gray-400">您的隐私将受到严格保护，仅用于核保咨询</p>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
       )}
@@ -317,6 +367,7 @@ export default function Home() {
           /* 结果页 */
           <div className="animate-fade-in-up space-y-6">
             
+            {/* 分析卡片 */}
             {analysisData && (
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-indigo-50 mb-6">
                    <div className="flex items-center gap-2 mb-6">
@@ -438,7 +489,7 @@ export default function Home() {
                </div>
             </div>
             
-            {/* ✅ 新增：合规免责声明 Footer */}
+            {/* 免责声明 Footer */}
             <footer className="text-center text-gray-300 text-[10px] pb-8 pt-4">
                 <p>HealthGuardian AI 核保结果仅供参考，不作为最终承保承诺。</p>
                 <p>具体核保结论以保险公司官方核保通知书为准。</p>
@@ -447,6 +498,41 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* 底部悬浮救援条 */}
+      <div className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[600px] z-50">
+         <div className="bg-white/90 backdrop-blur-lg border border-white/20 shadow-2xl shadow-blue-900/20 rounded-2xl p-2 pl-5 flex items-center justify-between ring-1 ring-gray-900/5">
+            <div className="flex items-center gap-3">
+               <div className="relative">
+                  <img src={selectedExpert.image} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+               </div>
+               <div className="text-xs">
+                  <div className="font-bold text-gray-900">看不懂方案？</div>
+                  <div className="text-gray-500">让 {selectedExpert.name} 帮您把关</div>
+               </div>
+            </div>
+            <button onClick={handleConsult} className="bg-blue-600 text-white text-sm font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 hover:scale-105 transition-transform">
+               免费咨询
+            </button>
+         </div>
+      </div>
+
     </div>
   )
 }
+
+const LeverageTag = ({ productName }: { productName: string }) => {
+  if (!productName) return null;
+  let style: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, backgroundColor: '#E3F2FD', color: '#1565C0', marginLeft: '8px' };
+  let text = '基础杠杆';
+
+  if (productName.includes('众民保') || productName.includes('惠民')) {
+    style.backgroundColor = '#F3E5F5'; style.color = '#7B1FA2'; text = '🔥 10000倍杠杆';
+  } else if (productName.includes('医疗') || productName.includes('e生保') || productName.includes('好医保')) {
+    style.backgroundColor = '#E8F5E9'; style.color = '#2E7D32'; text = '🟢 8000倍杠杆';
+  } else if (productName.includes('重疾') || productName.includes('达尔文')) {
+    style.backgroundColor = '#FFF8E1'; style.color = '#F57F17'; text = '🟡 100倍杠杆';
+  }
+  return <span style={style}>{text}</span>;
+};
