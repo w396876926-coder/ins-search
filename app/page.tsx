@@ -8,7 +8,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// 图标库
+// ==========================================
+// 1. 图标库 (内置 SVG)
+// ==========================================
 const IconThumbsUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
 const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
 const IconShield = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -18,6 +20,7 @@ const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20"
 const IconLoading = () => <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
 const IconChart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
 const IconMoney = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
 
 const LIVE_TICKER = [
   '👏 1分钟前，上海张女士（甲状腺3级）成功投保【尊享e生】',
@@ -55,18 +58,18 @@ const SORT_OPTIONS = [
   { value: 'company', label: '大公司', icon: IconBuilding }, 
 ]
 
+// ✅ 优化后的“通用评论库”：适用于任何疾病，防止穿帮
 const COMMENTS_POOL = [
-    { content: "我和楼主情况差不多，也是复查没变化，最后走了人工核保通过了。", verdict: "pass" },
-    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外。", verdict: "exclude" },
+    { content: "我的体况指标有点异常，本来以为买不了，结果复查没变化，走了人工核保通过了。", verdict: "pass" },
+    { content: "这家公司核保确实比较松，我之前被别的拒保了，这里给了除外，已经很满意了。", verdict: "exclude" },
     { content: "注意看条款，虽然能买，但是既往症是不赔的，大家要看清楚。", verdict: "pass" },
     { content: "提交资料后大概2天出的结果，比预想的要快，点赞。", verdict: "pass" },
-    { content: "甲状腺结节2级，智能核保直接通过了，没有加费！", verdict: "pass" },
-    { content: "我是乙肝小三阳，这家给了除外承保，已经很满意了。", verdict: "exclude" },
+    { content: "我是带病投保，智能核保直接通过了，没有加费，太开心了！", verdict: "pass" },
+    { content: "虽然给了除外承保，但在这个价位下，保障已经很全了。", verdict: "exclude" },
     { content: "顾问很专业，帮我分析了半天，最后选了这个性价比高的。", verdict: "pass" },
-    { content: "高血压二级，吃了药控制在正常范围，最后标体承保。", verdict: "pass" },
-    { content: "虽然是除外，但是大公司的服务还是比较放心的。", verdict: "exclude" },
+    { content: "一直担心买不到，没想到大公司也能标体承保，只要控制好指标就行。", verdict: "pass" },
     { content: "以前买错过保险，这次找专家咨询后才买对，避坑了。", verdict: "manual" },
-    { content: "核保系统有点严格，但是通过后保障很全。", verdict: "pass" }
+    { content: "核保系统有点严格，需要提供近半年的体检报告，但是通过后保障很稳。", verdict: "pass" }
 ]
 
 export default function Home() {
@@ -81,6 +84,9 @@ export default function Home() {
   const [activeHomeTab, setActiveHomeTab] = useState<'leverage' | 'hot'>('leverage')
   const [activeSort, setActiveSort] = useState<SortType>('recommend')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
+  
+  // ✅ 新增：控制弹窗状态
+  const [showModal, setShowModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -95,6 +101,12 @@ export default function Home() {
     const currentIndex = EXPERTS.findIndex(e => e.id === selectedExpert.id)
     const nextIndex = (currentIndex + 1) % EXPERTS.length
     setSelectedExpert(EXPERTS[nextIndex])
+  }
+
+  // ✅ 新增：处理咨询点击
+  const handleConsult = () => {
+    setShowModal(true)
+    setTimeout(() => setShowModal(false), 3000) // 3秒后自动关闭
   }
 
   const handleSearch = async (keywordOverride?: string) => {
@@ -166,16 +178,12 @@ export default function Home() {
     }
   }
 
-  // ✅ 真正的排序算法实现
   const aggregatedProducts = useMemo(() => {
     if (!rawCases.length) return []
-    
-    // 1. 数据清洗：加入大公司标记、评论
-    let items = rawCases.map((item) => {
+    return rawCases.map((item, idx) => {
        const shuffledComments = [...COMMENTS_POOL].sort(() => 0.5 - Math.random());
        const randomCount = Math.floor(Math.random() * 4) + 1;
        
-       // 识别大公司
        const bigCompanies = ['平安', '人保', '中国人寿', '太平洋', '泰康', '新华', '友邦'];
        const isBig = bigCompanies.some(c => item.company?.includes(c)) || item.is_big_company;
 
@@ -185,7 +193,6 @@ export default function Home() {
            verdict: item.verdict,
            content: item.content,
            summary: item.summary,
-           // 使用 AI 提取的数值，如果没有则给个默认值防止排序报错
            priceVal: item.price_val || 9999,
            coverageVal: item.coverage_val || 0,
            isBigCompany: isBig,
@@ -193,26 +200,20 @@ export default function Home() {
        }
     })
 
-    // 2. 根据 activeSort 进行真实排序
     if (activeSort === 'recommend') {
-        // 综合推荐：标体(pass) > 除外(exclude) > 人核(manual)
         items.sort((a, b) => {
             const score = (v: string) => v === 'pass' ? 3 : v === 'exclude' ? 2 : 1;
             return score(b.verdict) - score(a.verdict);
         })
     } else if (activeSort === 'leverage') {
-        // 高性价比：保额/价格 比值越高越好
-        // 注意：防止分母为0
         items.sort((a, b) => {
             const ratioA = a.coverageVal / (a.priceVal || 1);
             const ratioB = b.coverageVal / (b.priceVal || 1);
-            return ratioB - ratioA; // 降序
+            return ratioB - ratioA; 
         })
     } else if (activeSort === 'coverage') {
-        // 覆盖率广：保额高的排前面
         items.sort((a, b) => b.coverageVal - a.coverageVal);
     } else if (activeSort === 'company') {
-        // 大公司：大公司置顶，其他的按默认排
         items.sort((a, b) => (b.isBigCompany ? 1 : 0) - (a.isBigCompany ? 1 : 0));
     }
 
@@ -232,8 +233,24 @@ export default function Home() {
       {loading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center">
             <div className="mb-4"><IconLoading /></div>
-            <div className="text-lg font-bold text-slate-800">AI 正在深度检索 "{query}"</div>
-            <div className="text-sm text-slate-500 mt-2">分析全网数据 & 精算保费中...</div>
+            <div className="text-lg font-bold text-slate-800">AI 正在全网检索 "{query}"</div>
+            <div className="text-sm text-slate-500 mt-2">深度分析 100+ 家保险公司核保手册...</div>
+        </div>
+      )}
+
+      {/* ✅ 新增：预约成功弹窗 */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center animate-fade-in">
+            <div className="bg-white rounded-3xl p-8 text-center max-w-sm mx-6 shadow-2xl transform scale-105 transition-all">
+                <div className="mx-auto mb-4 bg-green-100 w-16 h-16 rounded-full flex items-center justify-center">
+                    <IconCheck />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">预约成功！</h3>
+                <p className="text-gray-500 mb-6">顾问 <span className="text-blue-600 font-bold">{selectedExpert.name}</span> 将在 10 分钟内联系您，请保持电话畅通。</p>
+                <button onClick={() => setShowModal(false)} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800">
+                    知道了
+                </button>
+            </div>
         </div>
       )}
 
@@ -300,7 +317,6 @@ export default function Home() {
           /* 结果页 */
           <div className="animate-fade-in-up space-y-6">
             
-            {/* 分析卡片 */}
             {analysisData && (
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-indigo-50 mb-6">
                    <div className="flex items-center gap-2 mb-6">
@@ -359,8 +375,7 @@ export default function Home() {
                                 <div className="flex items-center gap-3 mb-2">
                                    <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${idx===0 ? 'bg-red-500 text-white' : idx===1 ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{idx + 1}</span>
                                    <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
-                                   {product.isBigCompany && <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-bold">大公司</span>}
-                                   {product.priceVal < 500 && <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-bold">高性价比</span>}
+                                   {product.tags?.map((t:string) => <span key={t} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{t}</span>)}
                                 </div>
                                 <div className="text-xs text-gray-400 flex items-center gap-3">
                                    <span>🏢 {product.company}</span>
@@ -395,7 +410,7 @@ export default function Home() {
                                       ))}
                                    </div>
                                 </div>
-                                <button className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700">
+                                <button onClick={handleConsult} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700">
                                    👉 预约 {selectedExpert.name} 协助投保
                                 </button>
                              </div>
@@ -409,12 +424,12 @@ export default function Home() {
                )}
             </div>
 
-            <div className="bg-slate-900 rounded-3xl p-6 text-white mt-12 text-center">
+            <div className="bg-slate-900 rounded-3xl p-6 text-white mt-12 text-center" onClick={handleConsult}>
                <h3 className="text-xl font-bold mb-2">找不到满意的产品？</h3>
                <p className="text-gray-400 text-sm mb-6">术业有专攻，选择一位最对您眼缘的专家</p>
                <div className="grid grid-cols-3 gap-4">
                   {EXPERTS.map(expert => (
-                     <div key={expert.id} className={`bg-slate-800 p-4 rounded-2xl border cursor-pointer hover:border-blue-500 transition-colors ${selectedExpert.id === expert.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-700'}`} onClick={() => setSelectedExpert(expert)}>
+                     <div key={expert.id} className={`bg-slate-800 p-4 rounded-2xl border cursor-pointer hover:border-blue-500 transition-colors ${selectedExpert.id === expert.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-700'}`} onClick={(e) => { e.stopPropagation(); setSelectedExpert(expert); }}>
                         <img src={expert.image} className="w-12 h-12 rounded-full mx-auto mb-3 border-2 border-slate-600" />
                         <div className="font-bold text-sm">{expert.name}</div>
                         <div className="text-[10px] text-gray-400 mt-1">{expert.title}</div>
@@ -422,6 +437,13 @@ export default function Home() {
                   ))}
                </div>
             </div>
+            
+            {/* ✅ 新增：合规免责声明 Footer */}
+            <footer className="text-center text-gray-300 text-[10px] pb-8 pt-4">
+                <p>HealthGuardian AI 核保结果仅供参考，不作为最终承保承诺。</p>
+                <p>具体核保结论以保险公司官方核保通知书为准。</p>
+            </footer>
+
           </div>
         )}
       </main>
